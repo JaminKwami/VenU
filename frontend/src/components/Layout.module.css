@@ -1,0 +1,220 @@
+/* ─── Shell ──────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Desktop sidebar ────────────────────────────────────────── */
+.desktopSidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem 1.25rem;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border-right: 1px solid var(--border);
+  box-shadow: 1px 0 18px rgba(0,0,0,0.05);
+  z-index: 100;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ─── Logo ───────────────────────────────────────────────────── */
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  padding: 0 0.4rem;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+.logoMark {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.logoMark::after {
+  content: 'V';
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.logoText {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+/* ─── Nav container ──────────────────────────────────────────── */
+.navSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.navGroup {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0.85rem 0.65rem 0.28rem;
+  margin-top: 0.2rem;
+}
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition:
+    background 0.14s var(--ease),
+    color 0.14s var(--ease),
+    transform 0.15s var(--ease-spring);
+  white-space: nowrap;
+  position: relative;
+}
+.navLink svg { flex-shrink: 0; opacity: 0.50; transition: opacity 0.14s; }
+.navLink:hover {
+  background: rgba(255,255,255,0.82);
+  color: var(--ink);
+  transform: translateX(3px);
+}
+.navLink:hover svg { opacity: 0.80; }
+.navLink:active { transform: scale(0.98) translateX(1px); }
+.active {
+  background: var(--ink) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.22);
+  transform: none !important;
+}
+.active svg { opacity: 1 !important; color: #ffffff; }
+
+/* ─── User block ─────────────────────────────────────────────── */
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.4rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logoutBtn {
+  width: 28px; height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s, transform 0.14s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.logoutBtn:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+  transform: scale(1.1);
+}
+
+/* ─── Main content ───────────────────────────────────────────── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Mobile header ──────────────────────────────────────────── */
+.mobileHeader {
+  display: none;
+}
+.hamburger {
+  width: 36px; height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.72);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  color: var(--ink);
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.hamburger:hover { background: var(--surface-solid); box-shadow: var(--shadow-xs); }
+
+/* ─── Mobile drawer overlay ──────────────────────────────────── */
+.mobileOverlay { display: none; }
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .desktopSidebar { display: none; }
+
+  .mobileHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    padding: 0 1rem;
+    background: rgba(255,255,255,0.80);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-bottom: 1px solid var(--border);
+    z-index: 200;
+    box-shadow: 0 1px 14px rgba(0,0,0,0.06);
+  }
+
+  .mobileOverlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.28);
+    backdrop-filter: blur(4px);
+    z-index: 300;
+    animation: fadeIn 0.18s var(--ease);
+  }
+
+  .mobileDrawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(var(--sidebar-w), 82vw);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem 1.25rem;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-right: 1px solid var(--border);
+    box-shadow: 4px 0 28px rgba(0,0,0,0.14);
+    z-index: 301;
+    overflow-y: auto;
+    animation: slideFromLeft 0.22s var(--ease-spring);
+  }
+
+  .main {
+    margin-left: 0;
+    padding-top: 56px;
+  }
+}
