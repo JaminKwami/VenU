@@ -4,23 +4,24 @@
   place-items: center;
   padding: 1.5rem;
   background-image:
-    radial-gradient(ellipse 80% 60% at 15%  8%, rgba(255,255,255,0.85) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 45% at 88% 90%, rgba(210,220,255,0.35) 0%, transparent 55%);
+    radial-gradient(ellipse 80% 60% at 15%  8%, rgba(255,254,248,0.90) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 90%, rgba(31,92,71,0.10)   0%, transparent 55%);
 }
 
 .card {
   width: 100%;
   max-width: 420px;
   padding: 2.75rem 2.25rem 2.5rem;
-  background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255,255,255,0.90);
+  background: var(--surface-2);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255,255,253,0.90);
   border-radius: 22px;
   box-shadow:
-    0 8px 40px rgba(0,0,0,0.10),
-    0 0 0 1px rgba(0,0,0,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.90);
+    0 8px 40px rgba(35,30,20,0.10),
+    0 0 0 1px rgba(35,30,20,0.04),
+    inset 0 1px 0 rgba(255,255,253,0.90);
+  animation: fadeUp 0.4s var(--ease-out) both;
 }
 
 /* ── Brand ──────────────────────────────────────────────────── */
@@ -35,24 +36,27 @@
 .logoMark {
   width: 44px; height: 44px;
   border-radius: 14px;
-  background: var(--ink);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 0.6rem;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+  box-shadow: 0 4px 14px rgba(23,70,54,0.30);
+  transition: transform 0.25s var(--ease-spring);
 }
+.logoMark:hover { transform: rotate(-4deg) scale(1.05); }
 .logoMark span {
-  color: #fff;
+  color: var(--accent-ink);
   font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.04em;
 }
 
 .brandName {
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--ink);
   line-height: 1;
 }
@@ -86,36 +90,10 @@
   letter-spacing: -0.01em;
 }
 
-
-.card {
-  width: 100%;
-  max-width: 400px;
-  padding: 2.5rem 2rem;
-}
-
-.brand {
+.footnote {
+  margin-top: 1.6rem;
   text-align: center;
-  margin-bottom: 1.4rem;
-}
-
-.brandName {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
-}
-
-.brandSub {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1.2rem;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
 }

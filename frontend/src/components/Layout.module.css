@@ -34,7 +34,7 @@
 .logoMark {
   width: 26px; height: 26px;
   border-radius: 7px;
-  background: var(--ink);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -48,9 +48,10 @@
   letter-spacing: -0.02em;
 }
 .logoText {
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -97,13 +98,25 @@
 .navLink:hover svg { opacity: 0.80; }
 .navLink:active { transform: scale(0.98) translateX(1px); }
 .active {
-  background: var(--ink) !important;
-  color: #ffffff !important;
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
   font-weight: 600;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.22);
+  box-shadow: 0 3px 12px rgba(23,70,54,0.28);
   transform: none !important;
 }
-.active svg { opacity: 1 !important; color: #ffffff; }
+.active svg { opacity: 1 !important; color: var(--accent-ink); }
+.active::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 99px;
+  background: var(--accent);
+  animation: fadeIn 0.2s var(--ease-out);
+}
 
 /* ─── User block ─────────────────────────────────────────────── */
 .userRow {

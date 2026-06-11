@@ -1,44 +1,53 @@
-/* ─── VenU Design System ─────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&display=swap');
+/* ─── VenU Design System · AroLabs ───────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:opsz,wght@14..32,300..800&display=swap');
 
 :root {
-  --bg:             #eef0f7;
-  --surface:        rgba(255,255,255,0.70);
-  --surface-2:      rgba(255,255,255,0.88);
-  --surface-solid:  #ffffff;
-  --border:         rgba(0,0,0,0.07);
-  --border-hover:   rgba(0,0,0,0.13);
-  --border-focus:   rgba(0,0,0,0.28);
+  /* Warm paper ground + deep evergreen accent */
+  --bg:             #f3f1ea;
+  --surface:        rgba(255,255,253,0.72);
+  --surface-2:      rgba(255,255,253,0.88);
+  --surface-solid:  #fffefb;
+  --border:         rgba(35,30,20,0.09);
+  --border-hover:   rgba(35,30,20,0.16);
+  --border-focus:   rgba(31,92,71,0.55);
 
-  --ink:   #0d0f14;
-  --ink-2: rgba(13,15,20,0.52);
-  --ink-3: rgba(13,15,20,0.28);
+  --ink:   #1b1813;
+  --ink-2: rgba(27,24,19,0.56);
+  --ink-3: rgba(27,24,19,0.32);
 
-  --success:        #146b36;
-  --success-bg:     rgba(20,107,54,0.08);
-  --success-border: rgba(20,107,54,0.18);
-  --warning:        #854d0e;
-  --warning-bg:     rgba(133,77,14,0.08);
-  --warning-border: rgba(133,77,14,0.18);
-  --danger:         #991b1b;
-  --danger-bg:      rgba(153,27,27,0.08);
-  --danger-border:  rgba(153,27,27,0.18);
+  --accent:        #1f5c47;
+  --accent-deep:   #174636;
+  --accent-bg:     rgba(31,92,71,0.08);
+  --accent-border: rgba(31,92,71,0.22);
+  --accent-ink:    #f6f4ee;
+  --accent-glow:   rgba(31,92,71,0.16);
+
+  --success:        #1f6b40;
+  --success-bg:     rgba(31,107,64,0.08);
+  --success-border: rgba(31,107,64,0.20);
+  --warning:        #8a5a14;
+  --warning-bg:     rgba(138,90,20,0.09);
+  --warning-border: rgba(138,90,20,0.20);
+  --danger:         #9c2b21;
+  --danger-bg:      rgba(156,43,33,0.08);
+  --danger-border:  rgba(156,43,33,0.18);
 
   --r:    18px;
   --r-md: 12px;
   --r-sm: 9px;
   --r-xs: 5px;
 
-  --blur:    blur(24px) saturate(180%);
-  --blur-sm: blur(14px) saturate(160%);
+  --blur:    blur(24px) saturate(160%);
+  --blur-sm: blur(14px) saturate(150%);
 
-  --shadow-xs:   0 1px 3px rgba(0,0,0,0.06);
-  --shadow-sm:   0 2px 10px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
-  --shadow:      0 6px 24px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04);
-  --shadow-lift: 0 16px 48px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.05);
+  --shadow-xs:   0 1px 3px rgba(35,30,20,0.06);
+  --shadow-sm:   0 2px 10px rgba(35,30,20,0.07), 0 0 0 1px rgba(35,30,20,0.03);
+  --shadow:      0 6px 24px rgba(35,30,20,0.09), 0 0 0 1px rgba(35,30,20,0.03);
+  --shadow-lift: 0 16px 48px rgba(35,30,20,0.12), 0 0 0 1px rgba(35,30,20,0.04);
 
   --sidebar-w: 240px;
-  --font:      'Inter', system-ui, -apple-system, sans-serif;
+  --font:         'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --ease:        cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out:    cubic-bezier(0.0, 0, 0.2, 1);
@@ -56,10 +65,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image:
-    radial-gradient(ellipse 100% 80% at 8%   0%,  rgba(255,255,255,0.92) 0%, transparent 58%),
-    radial-gradient(ellipse 70%  60% at 92% 100%, rgba(200,215,255,0.22) 0%, transparent 55%),
-    radial-gradient(ellipse 50%  40% at 52%  50%, rgba(220,228,255,0.14) 0%, transparent 70%);
+    radial-gradient(ellipse 100% 80% at 8%   0%,  rgba(255,254,248,0.95) 0%, transparent 58%),
+    radial-gradient(ellipse 70%  60% at 92% 100%, rgba(31,92,71,0.07)    0%, transparent 55%),
+    radial-gradient(ellipse 50%  40% at 52%  50%, rgba(196,178,138,0.10) 0%, transparent 70%);
   background-attachment: fixed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────── */
@@ -107,8 +125,21 @@ body {
 .stagger-6 { animation-delay: 0.25s; }
 
 /* ─── Typography ─────────────────────────────────────────────── */
-h1 { font-size: 1.65rem; font-weight: 760; letter-spacing: -0.03em; line-height: 1.2; }
-h2 { font-size: 1.2rem;  font-weight: 660; letter-spacing: -0.02em; }
+h1 {
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  font-variation-settings: 'opsz' 40;
+}
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 540;
+  letter-spacing: -0.01em;
+  font-variation-settings: 'opsz' 28;
+}
 h3 { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; }
 p  { line-height: 1.65; color: var(--ink-2); }
 a  { color: inherit; text-decoration: none; }
@@ -144,8 +175,8 @@ a  { color: inherit; text-decoration: none; }
 .input:hover:not(:focus) { border-color: var(--border-hover); }
 .input:focus, .select:focus {
   border-color: var(--border-focus);
-  background: #ffffff;
-  box-shadow: 0 0 0 3.5px rgba(0,0,0,0.06), var(--shadow-xs);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 3.5px var(--accent-glow), var(--shadow-xs);
 }
 .select option { background: #fff; color: var(--ink); }
 textarea.input { resize: vertical; min-height: 86px; line-height: 1.6; }
@@ -176,16 +207,16 @@ textarea.input { resize: vertical; min-height: 86px; line-height: 1.6; }
 .btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none !important; }
 .btn:not(:disabled):hover  { transform: translateY(-1.5px); }
 .btn:not(:disabled):active { transform: scale(0.96) translateY(0px); }
-.btn:focus-visible { outline: 3px solid rgba(0,0,0,0.20); outline-offset: 2px; }
+.btn:focus-visible { outline: 3px solid var(--accent-glow); outline-offset: 2px; }
 
 .btn-primary {
-  background: var(--ink);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 2px 8px rgba(23,70,54,0.28), 0 1px 2px rgba(23,70,54,0.14);
 }
 .btn-primary:not(:disabled):hover {
-  background: #1c1e26;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  background: var(--accent-deep);
+  box-shadow: 0 6px 20px rgba(23,70,54,0.34);
 }
 .btn-ghost {
   background: rgba(255,255,255,0.68);

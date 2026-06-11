@@ -13,7 +13,7 @@ function CapacityBar({ capacity }) {
         <span style={{ fontSize: '0.78rem', fontWeight: 650, color: 'var(--ink)' }}>{capacity.toLocaleString()}</span>
       </div>
       <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--ink)', borderRadius: 99, transition: 'width 0.6s var(--ease)' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 99, transition: 'width 0.6s var(--ease)' }} />
       </div>
     </div>
   );

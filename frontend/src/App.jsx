@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Layout from './components/Layout';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import VenuesPage from './pages/VenuesPage';
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path='/' element={<LandingPage />} />
         <Route path='/login' element={<LoginPage />} />
 
         <Route element={<PrivateRoute />}>
@@ -42,7 +44,6 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path='/' element={<Navigate to='/dashboard' replace />} />
       </Routes>
     </BrowserRouter>
   );

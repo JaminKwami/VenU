@@ -83,6 +83,8 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign in →'}
           </button>
         </form>
+
+        <p className={styles.footnote}>A product of AroLabs</p>
       </div>
     </div>
   );

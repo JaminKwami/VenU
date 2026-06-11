@@ -11,10 +11,10 @@ const STATUS_MAP = {
 };
 
 const ACCENT_MAP = {
-  total:    '#0d0d12',
-  pending:  '#92400e',
-  approved: '#15803d',
-  rejected: '#b91c1c',
+  total:    '#1f5c47',
+  pending:  '#8a5a14',
+  approved: '#1f6b40',
+  rejected: '#9c2b21',
 };
 
 function StatusBadge({ status }) {
