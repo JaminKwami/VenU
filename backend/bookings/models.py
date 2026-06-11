@@ -61,7 +61,7 @@ class Booking(models.Model):
         # Fine-grained overlap logic is handled in the service layer.
         constraints = [
             models.CheckConstraint(
-                check=models.Q(end_time__gt=models.F('start_time')),
+                condition=models.Q(end_time__gt=models.F('start_time')),
                 name='booking_end_after_start',
             )
         ]

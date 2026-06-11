@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'ordering': ['-date', '-start_time'],
-                'constraints': [models.CheckConstraint(check=models.Q(('end_time__gt', models.F('start_time'))), name='booking_end_after_start')],
+                'constraints': [models.CheckConstraint(condition=models.Q(('end_time__gt', models.F('start_time'))), name='booking_end_after_start')],
             },
         ),
     ]
