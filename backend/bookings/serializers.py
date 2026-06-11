@@ -14,14 +14,19 @@ class BookingSerializer(serializers.ModelSerializer):
 
     user = UserSerializer(read_only=True)
     venue = VenueSerializer(read_only=True)
+    decided_by = UserSerializer(read_only=True)
 
     class Meta:
         model = Booking
         fields = [
             'id', 'user', 'venue', 'date', 'start_time', 'end_time',
-            'status', 'purpose', 'created_at', 'updated_at',
+            'status', 'purpose', 'attendee_count', 'rejection_reason',
+            'decided_by', 'decided_at', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'status', 'rejection_reason', 'decided_by', 'decided_at',
+            'created_at', 'updated_at',
+        ]
 
 
 class BookingCreateSerializer(serializers.ModelSerializer):
@@ -33,7 +38,7 @@ class BookingCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Booking
-        fields = ['venue', 'date', 'start_time', 'end_time', 'purpose']
+        fields = ['venue', 'date', 'start_time', 'end_time', 'purpose', 'attendee_count']
 
     def validate(self, data):
         if data['end_time'] <= data['start_time']:
@@ -44,9 +49,9 @@ class BookingCreateSerializer(serializers.ModelSerializer):
 
 
 class BookingStatusSerializer(serializers.ModelSerializer):
-    """Minimal serializer for approve/reject actions."""
+    """Minimal serializer for approve/reject/cancel actions."""
 
     class Meta:
         model = Booking
-        fields = ['id', 'status']
-        read_only_fields = ['id', 'status']
+        fields = ['id', 'status', 'rejection_reason', 'decided_at']
+        read_only_fields = ['id', 'status', 'rejection_reason', 'decided_at']

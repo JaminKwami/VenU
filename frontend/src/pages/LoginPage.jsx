@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
 import styles from './LoginPage.module.css';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function LoginPage() {
+  usePageTitle('Sign in');
   const navigate = useNavigate();
   const { setTokens, setUser } = useAuthStore();
 

@@ -243,6 +243,7 @@ textarea.input { resize: vertical; min-height: 86px; line-height: 1.6; }
 .badge-approved { background: var(--success-bg);  color: var(--success); border: 1px solid var(--success-border); }
 .badge-rejected { background: var(--danger-bg);   color: var(--danger);  border: 1px solid var(--danger-border);  }
 .badge-active   { background: var(--success-bg);  color: var(--success); border: 1px solid var(--success-border); }
+.badge-cancelled { background: rgba(0,0,0,0.06); color: var(--ink-3); border: 1px solid var(--border); }
 
 /* ─── Messages ───────────────────────────────────────────────── */
 .error-msg {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 function CapacityBar({ capacity }) {
   const max = 500;
@@ -19,6 +20,7 @@ function CapacityBar({ capacity }) {
 }
 
 export default function VenuesPage() {
+  usePageTitle('Venues');
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

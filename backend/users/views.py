@@ -18,6 +18,7 @@ class LoginView(TokenObtainPairView):
     Inherits all logic from simplejwt — no extra code needed.
     """
     permission_classes = [AllowAny]
+    throttle_scope = 'login'
 
 
 class RefreshView(TokenRefreshView):
@@ -26,6 +27,7 @@ class RefreshView(TokenRefreshView):
     Exchange a refresh token for a new access token.
     """
     permission_classes = [AllowAny]
+    throttle_scope = 'token_refresh'
 
 
 class MeView(APIView):

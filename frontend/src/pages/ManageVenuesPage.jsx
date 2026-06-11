@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const EMPTY = { name: '', location: '', capacity: '', description: '' };
 
 export default function ManageVenuesPage() {
+  usePageTitle('Manage Venues');
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);

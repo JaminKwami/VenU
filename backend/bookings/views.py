@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -20,9 +21,9 @@ class BookingListCreateView(APIView):
 
     def get(self, request):
         if request.user.is_admin or request.user.is_staff_member:
-            bookings = Booking.objects.select_related('user', 'venue').all()
+            bookings = Booking.objects.select_related('user', 'venue', 'decided_by').all()
         else:
-            bookings = Booking.objects.select_related('user', 'venue').filter(user=request.user)
+            bookings = Booking.objects.select_related('user', 'venue', 'decided_by').filter(user=request.user)
         serializer = BookingSerializer(bookings, many=True)
         return Response(serializer.data)
 
@@ -49,6 +50,7 @@ class BookingListCreateView(APIView):
                 start_time=data['start_time'],
                 end_time=data['end_time'],
                 purpose=data.get('purpose', ''),
+                attendee_count=data.get('attendee_count'),
             )
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_409_CONFLICT)
@@ -90,7 +92,7 @@ class BookingApproveView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            booking = services.approve_booking(booking)
+            booking = services.approve_booking(booking, decided_by=request.user)
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_409_CONFLICT)
 
@@ -110,8 +112,62 @@ class BookingRejectView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            booking = services.reject_booking(booking)
+            booking = services.reject_booking(
+                booking,
+                decided_by=request.user,
+                reason=str(request.data.get('reason', ''))[:500],
+            )
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(BookingStatusSerializer(booking).data)
+
+
+class BookingCancelView(APIView):
+    """
+    PATCH /api/bookings/{id}/cancel/  — owner or admin
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            booking = services.cancel_booking(booking, cancelled_by=request.user)
+        except ValidationError as exc:
+            return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(BookingStatusSerializer(booking).data)
+
+
+class BookingAvailabilityView(APIView):
+    """
+    GET /api/bookings/availability/?venue={id}&date=YYYY-MM-DD
+    Returns the taken (pending/approved) slots so users can pick a free time.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        venue_id = request.query_params.get('venue')
+        date_str = request.query_params.get('date')
+        if not venue_id or not date_str:
+            return Response(
+                {'detail': 'Both "venue" and "date" query parameters are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        date = parse_date(date_str)
+        if date is None:
+            return Response(
+                {'detail': 'Invalid date — use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            venue = Venue.objects.get(pk=venue_id, is_active=True)
+        except (Venue.DoesNotExist, ValueError):
+            return Response({'detail': 'Venue not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        slots = services.get_taken_slots(venue, date)
+        return Response({'venue': venue.pk, 'date': date, 'taken_slots': list(slots)})

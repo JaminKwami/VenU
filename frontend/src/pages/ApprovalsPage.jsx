@@ -1,7 +1,22 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { usePageTitle } from '../hooks/usePageTitle';
 
-const STATUS_MAP = { PENDING: 'badge-pending', APPROVED: 'badge-approved', REJECTED: 'badge-rejected' };
+const STATUS_MAP = {
+  PENDING: 'badge-pending',
+  APPROVED: 'badge-approved',
+  REJECTED: 'badge-rejected',
+  CANCELLED: 'badge-cancelled',
+};
+
+function Detail({ label, children }) {
+  return (
+    <div>
+      <span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>{label}</span>
+      {children}
+    </div>
+  );
+}
 
 function RequestCard({ b, onApprove, onReject, acting }) {
   return (
@@ -22,11 +37,16 @@ function RequestCard({ b, onApprove, onReject, acting }) {
 
       {/* Details */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem 0.75rem', fontSize: '0.82rem', color: 'var(--ink-2)' }}>
-        <div><span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Venue</span>
-          <strong style={{ color: 'var(--ink)' }}>{b.venue.name}</strong></div>
-        <div><span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Date</span>{b.date}</div>
-        <div><span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Time</span>{b.start_time.slice(0,5)} â€“ {b.end_time.slice(0,5)}</div>
-        {b.purpose && <div><span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Purpose</span>{b.purpose}</div>}
+        <Detail label="Venue"><strong style={{ color: 'var(--ink)' }}>{b.venue.name}</strong></Detail>
+        <Detail label="Date">{b.date}</Detail>
+        <Detail label="Time">{b.start_time.slice(0, 5)} – {b.end_time.slice(0, 5)}</Detail>
+        {b.attendee_count != null && <Detail label="Attendees">{b.attendee_count} / {b.venue.capacity}</Detail>}
+        {b.purpose && <Detail label="Purpose">{b.purpose}</Detail>}
+        {b.status === 'REJECTED' && b.rejection_reason && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Detail label="Rejection reason">{b.rejection_reason}</Detail>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -35,18 +55,18 @@ function RequestCard({ b, onApprove, onReject, acting }) {
           <button
             className="btn btn-success"
             disabled={acting === b.id}
-            onClick={() => onApprove(b.id)}
+            onClick={() => onApprove(b)}
             style={{ flex: 1 }}
           >
-            {acting === b.id ? 'â€¦' : 'âœ“ Approve'}
+            {acting === b.id ? '…' : 'Approve'}
           </button>
           <button
             className="btn btn-danger"
             disabled={acting === b.id}
-            onClick={() => onReject(b.id)}
+            onClick={() => onReject(b)}
             style={{ flex: 1 }}
           >
-            {acting === b.id ? 'â€¦' : 'âœ• Reject'}
+            {acting === b.id ? '…' : 'Reject'}
           </button>
         </div>
       )}
@@ -54,27 +74,89 @@ function RequestCard({ b, onApprove, onReject, acting }) {
   );
 }
 
+function ConfirmModal({ booking, mode, onConfirm, onClose, busy }) {
+  const [reason, setReason] = useState('');
+  const isReject = mode === 'reject';
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}
+    >
+      <div className="card fade-up" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div>
+          <h3 style={{ marginBottom: '0.35rem' }}>{isReject ? 'Reject booking?' : 'Approve booking?'}</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--ink-2)' }}>
+            {booking.venue.name} · {booking.date} · {booking.start_time.slice(0, 5)}–{booking.end_time.slice(0, 5)}
+            <br />Requested by {booking.user.full_name || booking.user.email}
+          </p>
+        </div>
+
+        {isReject && (
+          <div>
+            <label className="label">Reason <span style={{ color: 'var(--ink-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(shown to the requester)</span></label>
+            <input
+              className="input"
+              placeholder="e.g. Venue reserved for maintenance"
+              value={reason}
+              maxLength={500}
+              onChange={e => setReason(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.55rem' }}>
+          <button className="btn" onClick={onClose} disabled={busy} style={{ flex: 1 }}>Cancel</button>
+          <button
+            className={`btn ${isReject ? 'btn-danger' : 'btn-success'}`}
+            onClick={() => onConfirm(reason)}
+            disabled={busy}
+            style={{ flex: 1 }}
+          >
+            {busy ? '…' : isReject ? 'Reject' : 'Approve'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ApprovalsPage() {
+  usePageTitle('Approvals');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(null);
   const [filter, setFilter] = useState('PENDING');
+  const [modal, setModal] = useState(null);   // { booking, mode }
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.get('/bookings/').then(r => setBookings(r.data)).finally(() => setLoading(false));
   }, []);
 
-  async function handleAction(id, status) {
-    setActing(id);
+  async function handleConfirm(reason) {
+    const { booking, mode } = modal;
+    setActing(booking.id);
+    setError('');
     try {
-      const res = await api.patch(`/bookings/${id}/`, { status });
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: res.data.status } : b));
+      const url = mode === 'reject'
+        ? `/bookings/${booking.id}/reject/`
+        : `/bookings/${booking.id}/approve/`;
+      const res = await api.patch(url, mode === 'reject' ? { reason } : {});
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id
+          ? { ...b, status: res.data.status, rejection_reason: res.data.rejection_reason }
+          : b
+      ));
+      setModal(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Action failed — please try again.');
     } finally {
       setActing(null);
     }
   }
 
-  const filters = ['ALL', 'PENDING', 'APPROVED', 'REJECTED'];
+  const filters = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
   const visible = filter === 'ALL' ? bookings : bookings.filter(b => b.status === filter);
 
   return (
@@ -114,9 +196,11 @@ export default function ApprovalsPage() {
         </div>
       </div>
 
+      {error && <p className="error-msg" style={{ marginBottom: '1rem' }}>{error}</p>}
+
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.85rem' }}>
-          {[1,2,3].map(i => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div className="skeleton" style={{ height: 32, width: '60%' }} />
               <div className="skeleton" style={{ height: 14, width: '80%' }} />
@@ -138,11 +222,21 @@ export default function ApprovalsPage() {
               key={b.id}
               b={b}
               acting={acting}
-              onApprove={id => handleAction(id, 'APPROVED')}
-              onReject={id => handleAction(id, 'REJECTED')}
+              onApprove={booking => setModal({ booking, mode: 'approve' })}
+              onReject={booking => setModal({ booking, mode: 'reject' })}
             />
           ))}
         </div>
+      )}
+
+      {modal && (
+        <ConfirmModal
+          booking={modal.booking}
+          mode={modal.mode}
+          busy={acting === modal.booking.id}
+          onConfirm={handleConfirm}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   );

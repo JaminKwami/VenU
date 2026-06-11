@@ -8,6 +8,7 @@ class BookingStatus(models.TextChoices):
     PENDING = 'PENDING', 'Pending'
     APPROVED = 'APPROVED', 'Approved'
     REJECTED = 'REJECTED', 'Rejected'
+    CANCELLED = 'CANCELLED', 'Cancelled'
 
 
 class Booking(models.Model):
@@ -37,6 +38,19 @@ class Booking(models.Model):
         default=BookingStatus.PENDING,
     )
     purpose = models.CharField(max_length=300, blank=True, default='')
+    attendee_count = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Expected number of attendees (checked against venue capacity).',
+    )
+    rejection_reason = models.CharField(max_length=500, blank=True, default='')
+    # Audit trail: which admin decided, and when.
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='decided_bookings',
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1,10 +1,19 @@
 from django.urls import path
 
-from .views import BookingListCreateView, BookingDetailView, BookingApproveView, BookingRejectView
+from .views import (
+    BookingListCreateView,
+    BookingDetailView,
+    BookingApproveView,
+    BookingRejectView,
+    BookingCancelView,
+    BookingAvailabilityView,
+)
 
 urlpatterns = [
     path('', BookingListCreateView.as_view(), name='booking-list-create'),
+    path('availability/', BookingAvailabilityView.as_view(), name='booking-availability'),
     path('<int:pk>/', BookingDetailView.as_view(), name='booking-detail'),
     path('<int:pk>/approve/', BookingApproveView.as_view(), name='booking-approve'),
     path('<int:pk>/reject/', BookingRejectView.as_view(), name='booking-reject'),
+    path('<int:pk>/cancel/', BookingCancelView.as_view(), name='booking-cancel'),
 ]

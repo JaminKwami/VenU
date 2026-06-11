@@ -6,6 +6,7 @@ import VenuesPage from './pages/VenuesPage';
 import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
+import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
 function PrivateRoute() {
@@ -36,10 +37,12 @@ export default function App() {
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
               <Route path='/admin/venues'    element={<ManageVenuesPage />} />
             </Route>
+
+            <Route path='*' element={<NotFoundPage />} />
           </Route>
         </Route>
 
-        <Route path='*' element={<Navigate to='/dashboard' replace />} />
+        <Route path='/' element={<Navigate to='/dashboard' replace />} />
       </Routes>
     </BrowserRouter>
   );
