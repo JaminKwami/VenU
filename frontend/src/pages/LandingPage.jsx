@@ -59,7 +59,7 @@ export default function LandingPage() {
             ) : (
               <>
                 <Link className="btn btn-ghost btn-sm" to="/login">Log in</Link>
-                <Link className="btn btn-primary btn-sm" to="/login" data-magnetic>Get started</Link>
+                <Link className="btn btn-primary btn-sm" to="/login" data-magnetic>Log in</Link>
               </>
             )}
           </div>
@@ -84,7 +84,7 @@ export default function LandingPage() {
               </p>
               <div className="hero-cta">
                 <Link className="btn btn-primary btn-lg" to={cta} data-magnetic>
-                  Start booking <Icon.Arrow />
+                  {authed ? 'Start booking' : 'Request access'} <Icon.Arrow />
                 </Link>
                 <a className="btn btn-ghost btn-lg" href="#how">How it works</a>
               </div>
