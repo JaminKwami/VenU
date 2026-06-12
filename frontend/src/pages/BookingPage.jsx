@@ -64,6 +64,16 @@ export default function BookingPage() {
     return () => { stale = true; };
   }, [venueId, date]);
 
+  // These derivations only depend on state/props already declared above,
+  // so they must live before the effects that reference them in their dep arrays.
+  const venue = venues.find(v => v.id === Number(venueId));
+  const clash = hour != null && overlaps(taken, hour, duration);
+  const nearestFree = useMemo(() => {
+    if (!clash) return null;
+    return HOURS.find(h => !overlaps(taken, h, duration) && h !== hour) ?? null;
+  }, [clash, taken, duration, hour]);
+  const overCap = venue && attendees && Number(attendees) > venue.capacity;
+
   useEffect(() => {
     if (!clash || !venue || hour === null) {
       setAlternatives([]);
@@ -87,15 +97,6 @@ export default function BookingPage() {
   }, [clash, venue, hour, duration, date, attendees]);
 
   useEffect(() => { setWaitlisted(false); }, [venueId, date, hour, duration]);
-
-  const venue = venues.find(v => v.id === Number(venueId));
-  const clash = hour != null && overlaps(taken, hour, duration);
-  const nearestFree = useMemo(() => {
-    if (!clash) return null;
-    return HOURS.find(h => !overlaps(taken, h, duration) && h !== hour) ?? null;
-  }, [clash, taken, duration, hour]);
-
-  const overCap = venue && attendees && Number(attendees) > venue.capacity;
 
   const canContinue =
     step === 1 ? !!venue :
