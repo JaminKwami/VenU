@@ -85,4 +85,10 @@ export const Icon = {
   ChevronRight: (p) => (
     <svg {...base} strokeWidth={2.2} {...p}><path d="M9 18l6-6-6-6"/></svg>
   ),
+  QR: (p) => (
+    <svg {...base} strokeWidth={1.8} {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h.01M18 14h3M14 18v3M18 18h3v3"/></svg>
+  ),
+  NoShow: (p) => (
+    <svg {...base} strokeWidth={1.8} {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/><path d="M7 7l10 10" strokeWidth={2}/></svg>
+  ),
 };

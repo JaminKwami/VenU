@@ -251,24 +251,32 @@ def check_in_booking(booking, token):
     return booking
 
 
-def auto_release_no_shows(grace_minutes=15):
-    """
-    Cancel approved bookings where no check-in was recorded within
-    `grace_minutes` of the scheduled start time.  Returns the count released.
-    Called by the auto_release_no_shows management command.
-    """
+def _no_show_qs(grace_minutes=15):
     now = timezone.now()
     today = now.date()
-    cutoff_dt = now - timedelta(minutes=grace_minutes)
-    cutoff_time = cutoff_dt.time()
-
-    no_shows = Booking.objects.filter(
+    cutoff_time = (now - timedelta(minutes=grace_minutes)).time()
+    return Booking.objects.select_related('user', 'venue').filter(
         status=BookingStatus.APPROVED,
         date=today,
         start_time__lte=cutoff_time,
         checked_in_at__isnull=True,
     )
 
+
+def get_no_show_candidates(grace_minutes=15):
+    """Return queryset of no-show bookings (no cancellation side-effects)."""
+    return _no_show_qs(grace_minutes)
+
+
+def auto_release_no_shows(grace_minutes=15, dry_run=False):
+    """
+    Cancel approved bookings where no check-in was recorded within
+    `grace_minutes` of the scheduled start time.  Returns the count.
+    Pass dry_run=True to count without making changes.
+    """
+    no_shows = _no_show_qs(grace_minutes)
+    if dry_run:
+        return no_shows.count()
     count = 0
     for booking in no_shows:
         booking.status = BookingStatus.CANCELLED

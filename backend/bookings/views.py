@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpResponse
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -290,6 +291,105 @@ class BookingCheckInView(APIView):
             return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(BookingSerializer(booking).data)
+
+
+class KioskLookupView(APIView):
+    """
+    Public endpoint — no auth required.
+    GET  /api/bookings/kiosk/?token=<full-uuid>
+         Returns booking summary card for a given check-in token.
+    POST /api/bookings/kiosk/
+         Body: {"token": "<full-uuid>"}  — performs the check-in.
+    The token is the full UUID stored on the booking (128-bit, safe to expose
+    on a kiosk that is physically secured at the venue entrance).
+    """
+    permission_classes = [AllowAny]
+
+    _SAFE_FIELDS = (
+        'id', 'date', 'start_time', 'end_time', 'status',
+        'checked_in_at', 'attendee_count', 'purpose', 'department',
+    )
+
+    def _safe_payload(self, booking):
+        return {
+            'id': booking.pk,
+            'date': booking.date,
+            'start_time': str(booking.start_time)[:5],
+            'end_time': str(booking.end_time)[:5],
+            'status': booking.status,
+            'checked_in_at': booking.checked_in_at,
+            'attendee_count': booking.attendee_count,
+            'purpose': booking.purpose or '',
+            'department': booking.department or '',
+            'venue_name': booking.venue.name,
+            'venue_location': booking.venue.location or booking.venue.building or '',
+            'booker_name': booking.user.full_name,
+        }
+
+    def _get_booking(self, token_str):
+        token_str = (token_str or '').strip()
+        if not token_str:
+            return None
+        try:
+            return Booking.objects.select_related('user', 'venue').get(
+                check_in_token=token_str
+            )
+        except (Booking.DoesNotExist, ValidationError):
+            return None
+
+    def get(self, request):
+        token = request.query_params.get('token', '')
+        booking = self._get_booking(token)
+        if booking is None:
+            return Response({'detail': 'Invalid or unknown token.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self._safe_payload(booking))
+
+    def post(self, request):
+        token = request.data.get('token', '')
+        booking = self._get_booking(token)
+        if booking is None:
+            return Response({'detail': 'Invalid or unknown token.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            booking = services.check_in_booking(booking, token)
+        except ValidationError as exc:
+            return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self._safe_payload(booking))
+
+
+class NoShowListView(APIView):
+    """
+    GET /api/bookings/no-shows/  — admin only.
+    Returns approved bookings for today where:
+      - start_time <= now - grace_minutes
+      - checked_in_at is None
+    POST /api/bookings/no-shows/release/  — manually trigger release for all.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        grace = int(request.query_params.get('grace', 15))
+        count = services.auto_release_no_shows(grace_minutes=grace, dry_run=True)
+        bookings = services.get_no_show_candidates(grace_minutes=grace)
+        data = [
+            {
+                'id': b.pk,
+                'date': b.date,
+                'start_time': str(b.start_time)[:5],
+                'end_time': str(b.end_time)[:5],
+                'venue_name': b.venue.name,
+                'booker_name': b.user.full_name,
+                'booker_email': b.user.email,
+                'attendee_count': b.attendee_count,
+                'purpose': b.purpose or '',
+            }
+            for b in bookings
+        ]
+        return Response({'no_shows': data, 'count': len(data)})
+
+    def post(self, request):
+        grace = int(request.data.get('grace', 15))
+        released = services.auto_release_no_shows(grace_minutes=grace)
+        return Response({'released': released})
 
 
 class WaitlistView(APIView):

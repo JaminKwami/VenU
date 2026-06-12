@@ -6,6 +6,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { useReveal } from '../hooks/useReveal';
 import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
+import CheckInModal from '../components/CheckInModal';
 import { dateChip, hm, hoursBetween, relTime, todayISO, STATUS_BADGE } from '../utils/venueUi';
 
 function greeting() {
@@ -54,6 +55,7 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const [bookings, setBookings] = useState(null);
+  const [qrBooking, setQrBooking] = useState(null);
   const [histStatus, setHistStatus] = useState('All');
   const [histQuery, setHistQuery] = useState('');
   const revealRef = useReveal([bookings != null]);
@@ -127,6 +129,7 @@ export default function DashboardPage() {
   const upcomingCount = upcoming.filter(b => b.status === 'APPROVED').length;
 
   return (
+    <>
     <div className="page" ref={revealRef}>
       <div className="page-head reveal">
         <span className="eyebrow">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -186,7 +189,6 @@ export default function DashboardPage() {
               {!loading && upcoming.slice(0, 5).map(b => {
                 const chip = dateChip(b.date);
                 const [cls, label] = STATUS_BADGE[b.status];
-                const tokenShort = b.check_in_token ? b.check_in_token.replace(/-/g, '').slice(0, 8).toUpperCase() : null;
                 return (
                   <div className="booking-item" key={b.id}>
                     <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
@@ -194,14 +196,22 @@ export default function DashboardPage() {
                       <div className="t">{b.purpose || b.venue.name}</div>
                       <div className="s">
                         {b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)} · <span className="mono" style={{ fontSize: '.78rem' }}>{b.venue.capacity} cap</span>
-                        {b.status === 'APPROVED' && tokenShort && (
-                          <span className={`bi-checkin${b.checked_in_at ? ' done' : ''}`} title={b.checked_in_at ? 'Checked in' : 'Check-in code'}>
-                            {b.checked_in_at ? 'Checked in' : tokenShort}
-                          </span>
-                        )}
                       </div>
                     </div>
-                    <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexShrink: 0 }}>
+                      {b.status === 'APPROVED' && b.check_in_token && (
+                        <button
+                          className={`bi-checkin${b.checked_in_at ? ' done' : ''}`}
+                          title={b.checked_in_at ? 'Checked in — click to view code' : 'View check-in QR code'}
+                          aria-label="View check-in code"
+                          onClick={() => setQrBooking(b)}
+                        >
+                          <Icon.QR width={12} height={12} />
+                          {b.checked_in_at ? 'Checked in' : 'Check in'}
+                        </button>
+                      )}
+                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                    </div>
                   </div>
                 );
               })}
@@ -311,5 +321,10 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+
+    {qrBooking && (
+      <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />
+    )}
+    </>
   );
 }

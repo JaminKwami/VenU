@@ -10,6 +10,7 @@ import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
+import CheckInKioskPage from './pages/CheckInKioskPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
@@ -31,6 +32,8 @@ export default function App() {
       <Routes>
         <Route path='/' element={<LandingPage />} />
         <Route path='/login' element={<LoginPage />} />
+        {/* Public kiosk — no auth, designed for security desk tablets */}
+        <Route path='/checkin' element={<CheckInKioskPage />} />
 
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>

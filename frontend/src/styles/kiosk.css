@@ -1,0 +1,328 @@
+/* ── Kiosk — full-screen tablet UI ───────────────────────────────────────── */
+
+.kiosk-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+  padding: 2rem 1rem;
+  gap: 0;
+}
+
+.kiosk-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .3rem;
+  margin-bottom: 2.5rem;
+}
+
+.kiosk-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -.04em;
+  color: var(--ink);
+}
+
+.kiosk-tagline {
+  font-size: .75rem;
+  font-family: var(--font-mono);
+  color: var(--ink-45);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.kiosk-card {
+  width: 100%;
+  max-width: 540px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl, 18px);
+  box-shadow: var(--sh-1);
+  padding: 2.5rem 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+  transition: all .35s var(--ease);
+}
+
+.kiosk-card-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--accent-soft);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+  color: var(--accent);
+}
+
+.kiosk-h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  color: var(--ink);
+  margin-bottom: .6rem;
+}
+
+.kiosk-sub {
+  font-size: .96rem;
+  color: var(--ink-65);
+  line-height: 1.55;
+  max-width: 400px;
+  margin-bottom: 1.8rem;
+}
+
+.kiosk-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+}
+
+.kiosk-input {
+  width: 100%;
+  padding: 1.1rem 1.2rem;
+  font-size: 1.3rem;
+  font-family: var(--font-mono);
+  letter-spacing: .12em;
+  text-align: center;
+  text-transform: uppercase;
+  background: var(--canvas-2);
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  outline: none;
+  transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+.kiosk-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.kiosk-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+  border: none;
+  cursor: pointer;
+  transition: all .2s var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+
+.kiosk-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.kiosk-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.kiosk-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.kiosk-btn-checkin {
+  background: var(--success, #16a34a);
+  color: #fff;
+  padding: 1.3rem 1.5rem;
+  font-size: 1.2rem;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(22,163,74,.3);
+}
+
+.kiosk-btn-checkin:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(22,163,74,.35);
+}
+
+.kiosk-btn-ghost {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  color: var(--ink-65);
+}
+
+.kiosk-btn-ghost:hover {
+  background: var(--canvas-2);
+}
+
+/* ── found state ── */
+.kiosk-found { text-align: left; gap: 0; }
+
+.kiosk-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: .35rem .8rem;
+  border-radius: 100px;
+  margin-bottom: 1.5rem;
+  align-self: flex-start;
+}
+
+.chip-ok { background: #dcfce7; color: #15803d; }
+.chip-done { background: var(--accent-soft); color: var(--accent); }
+
+.kiosk-venue {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.kiosk-time {
+  font-size: 2.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  letter-spacing: -.02em;
+  margin: .3rem 0 .1rem;
+}
+
+.kiosk-date {
+  font-size: .9rem;
+  color: var(--ink-65);
+  margin-bottom: .2rem;
+}
+
+.kiosk-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--line);
+  margin: 1.4rem 0;
+}
+
+.kiosk-detail-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .9rem 1.5rem;
+  margin-bottom: 1.8rem;
+}
+
+.kd {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
+.kd span {
+  font-size: .68rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-45);
+}
+
+.kd strong {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.kiosk-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+}
+
+.kiosk-note {
+  font-size: .9rem;
+  color: var(--ink-65);
+  text-align: center;
+  padding: .8rem;
+  background: var(--canvas-2);
+  border-radius: var(--r-sm);
+}
+
+/* ── success state ── */
+.kiosk-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+[data-theme="dark"] .kiosk-success {
+  border-color: rgba(22,163,74,.35);
+  background: rgba(22,163,74,.07);
+}
+
+.kiosk-success-icon {
+  width: 88px;
+  height: 88px;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 32px rgba(22,163,74,.35);
+}
+
+/* ── error state ── */
+.kiosk-error {
+  border-color: #fecaca;
+}
+
+[data-theme="dark"] .kiosk-error {
+  border-color: rgba(220,38,38,.3);
+}
+
+.kiosk-error-icon {
+  width: 88px;
+  height: 88px;
+  background: var(--danger, #dc2626);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.kiosk-countdown {
+  font-size: .75rem;
+  color: var(--ink-45);
+  margin-top: .5rem;
+  font-family: var(--font-mono);
+}
+
+.kiosk-footer {
+  margin-top: 2.5rem;
+  font-size: .72rem;
+  color: var(--ink-28);
+  font-family: var(--font-mono);
+  letter-spacing: .06em;
+}
+
+/* Tablet landscape optimisations */
+@media (min-width: 768px) {
+  .kiosk-card { padding: 3rem 3.5rem 2.5rem; }
+  .kiosk-h1 { font-size: 2rem; }
+  .kiosk-input { font-size: 1.5rem; }
+  .kiosk-btn { font-size: 1.1rem; }
+}

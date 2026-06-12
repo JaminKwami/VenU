@@ -196,23 +196,39 @@ function NewTermForm({ onCreated }) {
 export default function AdminSettingsPage() {
   usePageTitle('Admin Settings');
   useTopbar('Admin Settings', null);
-  const [rules, setRules]   = useState(null);
-  const [terms, setTerms]   = useState(null);
-  const [venues, setVenues] = useState([]);
+  const [rules, setRules]     = useState(null);
+  const [terms, setTerms]     = useState(null);
+  const [venues, setVenues]   = useState([]);
+  const [noShows, setNoShows] = useState(null);
+  const [releasing, setReleasing] = useState(false);
   const revealRef = useReveal([rules != null, terms != null]);
 
   useEffect(() => {
     api.get('/bookings/approval-rules/').then(r => setRules(r.data)).catch(() => setRules([]));
     api.get('/bookings/term-dates/').then(r => setTerms(r.data)).catch(() => setTerms([]));
     api.get('/venues/').then(r => setVenues(r.data)).catch(() => {});
+    api.get('/bookings/no-shows/').then(r => setNoShows(r.data.no_shows)).catch(() => setNoShows([]));
   }, []);
+
+  async function releaseNoShows() {
+    if (!confirm(`Release ${noShows.length} no-show booking${noShows.length !== 1 ? 's' : ''}? This will cancel each booking and notify the waitlist.`)) return;
+    setReleasing(true);
+    try {
+      await api.post('/bookings/no-shows/', { grace: 15 });
+      setNoShows([]);
+    } catch {
+      alert('Release failed — please try again.');
+    } finally {
+      setReleasing(false);
+    }
+  }
 
   return (
     <div className="page" style={{ maxWidth: 1100 }} ref={revealRef}>
       <div className="page-head reveal">
         <span className="eyebrow">Administration</span>
         <h1>Settings</h1>
-        <p>Configure auto-approval rules and block out academic calendar periods.</p>
+        <p>Auto-approval rules, academic calendar, check-in management.</p>
       </div>
 
       {/* ── Auto-approval rules ── */}
@@ -304,6 +320,83 @@ export default function AdminSettingsPage() {
           <div className="eyebrow" style={{ marginBottom: '.8rem' }}>Add period</div>
           <NewTermForm onCreated={t => setTerms(prev => [...(prev || []), t])} />
         </div>
+      </div>
+
+      {/* ── No-show management ── */}
+      <div className="card reveal" data-d="2" style={{ marginTop: '1.4rem' }}>
+        <div className="card-head">
+          <div>
+            <h3>Today's no-shows</h3>
+            <p className="muted" style={{ fontSize: '.85rem', marginTop: '.3rem' }}>
+              Approved bookings that started more than 15 minutes ago with no check-in.
+              Releasing cancels the slot and notifies the waitlist.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '.7rem', alignItems: 'center', flexShrink: 0 }}>
+            <a
+              href="/checkin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline btn-sm"
+              style={{ gap: '.4rem' }}
+            >
+              <Icon.QR width={14} height={14} /> Open kiosk
+            </a>
+            {noShows && noShows.length > 0 && (
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={releaseNoShows}
+                disabled={releasing}
+              >
+                <Icon.NoShow width={14} height={14} />
+                {releasing ? 'Releasing…' : `Release ${noShows.length} no-show${noShows.length !== 1 ? 's' : ''}`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {noShows === null && (
+          <div style={{ padding: '1.5rem 1.3rem' }}>
+            {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 14, marginBottom: 8, borderRadius: 4 }} />)}
+          </div>
+        )}
+
+        {noShows && noShows.length === 0 && (
+          <div className="empty" style={{ padding: '1.5rem 1.3rem' }}>
+            <Icon.Check width={20} height={20} style={{ color: 'var(--success)' }} />
+            <span>No no-shows right now — everyone has checked in on time.</span>
+          </div>
+        )}
+
+        {noShows && noShows.length > 0 && (
+          <div className="table-wrap" style={{ borderRadius: 0, boxShadow: 'none', border: 'none' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Booker</th>
+                  <th>Venue</th>
+                  <th>Time</th>
+                  <th>Attendees</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                {noShows.map(ns => (
+                  <tr key={ns.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{ns.booker_name}</div>
+                      <div style={{ fontSize: '.78rem', color: 'var(--ink-65)' }}>{ns.booker_email}</div>
+                    </td>
+                    <td>{ns.venue_name}</td>
+                    <td className="mono">{ns.start_time}–{ns.end_time}</td>
+                    <td>{ns.attendee_count ?? '—'}</td>
+                    <td style={{ color: 'var(--ink-65)' }}>{ns.purpose || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -210,8 +210,27 @@
 .settings-inline-form .field label { font-size: .78rem; }
 
 /* ── Check-in code chip on booking items ── */
-.bi-checkin { font-family: var(--font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); border-radius: var(--r-sm); padding: .15em .5em; white-space: nowrap; }
+.bi-checkin { display: inline-flex; align-items: center; gap: .3em; cursor: pointer; font-family: var(--font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); border-radius: var(--r-sm); padding: .25em .55em; white-space: nowrap; transition: all .15s var(--ease); }
+.bi-checkin:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .bi-checkin.done { color: var(--ink-45); background: var(--surface-2); border-color: var(--line); }
+
+/* ── CheckInModal ── */
+.checkin-modal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: 0 20px 60px rgba(0,0,0,.18); width: min(420px, 92vw); padding: 0; overflow: hidden; }
+.checkin-modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid var(--line); }
+.checkin-modal-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); }
+.checkin-modal-sub { font-size: .8rem; color: var(--ink-65); margin-top: .15rem; }
+.checkin-qr-area { display: flex; justify-content: center; padding: 1.5rem 1.5rem 1rem; background: #fff; }
+[data-theme="dark"] .checkin-qr-area { background: var(--canvas-2); }
+.checkin-qr-canvas { border-radius: 10px; }
+.checkin-code-row { display: flex; align-items: center; justify-content: center; gap: .8rem; padding: .8rem 1.5rem 1.2rem; background: #fff; border-bottom: 1px solid var(--line); }
+[data-theme="dark"] .checkin-code-row { background: var(--canvas-2); }
+.checkin-code { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 800; letter-spacing: .18em; color: var(--ink); }
+.checkin-booking-info { padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: .6rem; }
+.cbi-row { display: flex; justify-content: space-between; align-items: center; font-size: .88rem; }
+.cbi-row span { color: var(--ink-65); }
+.cbi-row strong { color: var(--ink); font-weight: 600; }
+.checkin-done-banner { margin: 0 1.5rem 1.5rem; display: flex; align-items: center; gap: .5rem; background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); color: var(--success); border-radius: var(--r-sm); padding: .6rem .9rem; font-size: .85rem; font-weight: 600; }
+.checkin-hint { margin: 0 1.5rem 1.5rem; font-size: .8rem; color: var(--ink-65); line-height: 1.5; }
 
 /* ── Shared: modal overlay (manage venue editor, decline reason) ── */
 .modal-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 80; display: grid; place-items: center; padding: 1.2rem; animation: fadeIn .25s var(--ease); }

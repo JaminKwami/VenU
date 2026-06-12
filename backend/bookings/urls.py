@@ -11,6 +11,8 @@ from .views import (
     BookingExportView,
     BookingListCreateView,
     BookingRejectView,
+    KioskLookupView,
+    NoShowListView,
     TermDateDetailView,
     TermDateListView,
     WaitlistDetailView,
@@ -29,7 +31,10 @@ urlpatterns = [
     path('<int:pk>/reject/', BookingRejectView.as_view(), name='booking-reject'),
     path('<int:pk>/cancel/', BookingCancelView.as_view(), name='booking-cancel'),
     path('<int:pk>/checkin/', BookingCheckInView.as_view(), name='booking-checkin'),
-    # Admin settings
+    # Kiosk (public — no auth)
+    path('kiosk/', KioskLookupView.as_view(), name='booking-kiosk'),
+    # Admin
+    path('no-shows/', NoShowListView.as_view(), name='booking-no-shows'),
     path('approval-rules/', AutoApprovalRuleListView.as_view(), name='approval-rule-list'),
     path('approval-rules/<int:pk>/', AutoApprovalRuleDetailView.as_view(), name='approval-rule-detail'),
     path('term-dates/', TermDateListView.as_view(), name='term-date-list'),
