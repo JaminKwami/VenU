@@ -65,12 +65,12 @@ export default function Layout() {
         <div className="sb-section">Workspace</div>
         {navLink('/dashboard', 'Dashboard', Icon.Dash)}
         {navLink('/venues', 'Venues', Icon.Venues)}
-        {navLink('/book', 'New Booking', Icon.Book)}
+        {navLink('/book', 'Book a room', Icon.Book)}
         {isAdmin && (
           <>
             <div className="sb-section">Administration</div>
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
-            {navLink('/admin/venues', 'Manage Venues', Icon.Manage)}
+            {navLink('/admin/venues', 'Manage venues', Icon.Manage)}
             {navLink('/admin/settings', 'Settings', Icon.Settings)}
           </>
         )}

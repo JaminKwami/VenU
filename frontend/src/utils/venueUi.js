@@ -1,14 +1,14 @@
 /* Shared presentation helpers for the Blueprint screens. */
 
 const GRADIENTS = [
-  'linear-gradient(135deg,#2a4ddb,#6b3df0)',
-  'linear-gradient(135deg,#ff5a36,#d2861a)',
-  'linear-gradient(135deg,#1f6c52,#2a4ddb)',
-  'linear-gradient(135deg,#1f6c52,#7ec98f)',
-  'linear-gradient(135deg,#6b3df0,#2a4ddb)',
-  'linear-gradient(135deg,#d2861a,#ff5a36)',
-  'linear-gradient(135deg,#2a4ddb,#1f6c52)',
-  'linear-gradient(135deg,#6b3df0,#ff5a36)',
+  'linear-gradient(150deg,#2D4EAA,#1C3A7A)',
+  'linear-gradient(150deg,#1C4A38,#2A6B52)',
+  'linear-gradient(150deg,#5C3A1A,#8B5C2A)',
+  'linear-gradient(150deg,#2D4EAA,#1C4A38)',
+  'linear-gradient(150deg,#3D2A6B,#2D4EAA)',
+  'linear-gradient(150deg,#6B3A1A,#C8460A)',
+  'linear-gradient(150deg,#1C4A38,#3D6B40)',
+  'linear-gradient(150deg,#4A3820,#7A6040)',
 ];
 
 export function venueGradient(id) {

@@ -141,30 +141,27 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="stats-row">
-        <div className="card stat-card reveal">
-          <span className="stat-accent" />
-          <div className="stat-label">Upcoming</div>
-          <div className="stat-val">{loading ? '—' : upcomingCount}</div>
-          <div className="muted" style={{ fontSize: '.8rem' }}>bookings confirmed</div>
+      <div className="stat-ribbon reveal">
+        <div className={`stat-seg${upcomingCount > 0 ? ' accent' : ''}`}>
+          <div className="stat-seg-n">{loading ? '—' : upcomingCount}</div>
+          <div className="stat-seg-label">Upcoming</div>
         </div>
-        <div className="card stat-card reveal" data-d="1">
-          <span className="stat-accent" style={{ background: 'var(--warn)' }} />
-          <div className="stat-label">Pending</div>
-          <div className="stat-val">{loading ? '—' : pendingCount}</div>
-          <div className="muted" style={{ fontSize: '.8rem' }}>awaiting approval</div>
+        <div className={`stat-seg${pendingCount > 0 ? ' warn' : ''}`}>
+          <div className="stat-seg-n">{loading ? '—' : pendingCount}</div>
+          <div className="stat-seg-label">Pending</div>
         </div>
-        <div className="card stat-card reveal" data-d="2">
-          <span className="stat-accent" style={{ background: 'var(--success)' }} />
-          <div className="stat-label">Hours booked</div>
-          <div className="stat-val">{loading ? '—' : Math.round(approvedHours)}</div>
-          <div className="muted" style={{ fontSize: '.8rem' }}>across {venuesUsed} {venuesUsed === 1 ? 'venue' : 'venues'}</div>
+        <div className="stat-seg">
+          <div className="stat-seg-n">
+            {loading ? '—' : Math.round(approvedHours)}
+            {!loading && <span style={{ fontSize: '1.1rem', fontWeight: 400, letterSpacing: 0 }}>h</span>}
+          </div>
+          <div className="stat-seg-label">Term total</div>
         </div>
-        <div className="card stat-card reveal" data-d="3">
-          <span className="stat-accent" style={{ background: 'var(--coral)' }} />
-          <div className="stat-label">Most booked</div>
-          <div className="stat-val" style={{ fontSize: '1.5rem', marginTop: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loading ? '—' : (mostBooked?.name || '—')}</div>
-          <div className="muted" style={{ fontSize: '.8rem' }}>{mostBooked ? `${mostBooked.n} ${mostBooked.n === 1 ? 'session' : 'sessions'}` : 'no bookings yet'}</div>
+        <div className="stat-seg">
+          <div className="stat-seg-n" style={{ fontSize: mostBooked ? '1rem' : undefined, letterSpacing: mostBooked ? '-.01em' : undefined, marginTop: mostBooked ? '.4rem' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {loading ? '—' : (mostBooked?.name || '—')}
+          </div>
+          <div className="stat-seg-label">{mostBooked ? `Most used · ${mostBooked.n} sessions` : 'Most used'}</div>
         </div>
       </div>
 
@@ -278,21 +275,33 @@ export default function DashboardPage() {
         </div>
 
         <div className="stack" style={{ gap: '1.4rem' }}>
-          <div className="card card-pad reveal" data-d="1">
-            <h3 style={{ fontSize: '1.15rem', marginBottom: '1rem' }}>Quick actions</h3>
-            <div className="qa">
-              <Link to="/book">
-                <span className="qi"><Icon.Plus strokeWidth={2} /></span>
-                <div><div className="qt">New booking</div><div className="qd">Request a space in seconds</div></div>
+          <div className="reveal" data-d="1">
+            <div className="cmd-list">
+              <Link className="cmd-item" to="/book">
+                <div>
+                  <div className="cmd-label">Book a room</div>
+                  <div className="cmd-sub">
+                    {upcomingCount > 0 ? `${upcomingCount} booking${upcomingCount !== 1 ? 's' : ''} scheduled` : 'No upcoming bookings'}
+                  </div>
+                </div>
+                <span className="cmd-arrow">›</span>
               </Link>
-              <Link to="/venues">
-                <span className="qi" style={{ background: 'var(--coral)' }}><Icon.Venues strokeWidth={1.8} /></span>
-                <div><div className="qt">Browse venues</div><div className="qd">Explore every bookable space</div></div>
+              <Link className="cmd-item" to="/venues">
+                <div>
+                  <div className="cmd-label">Browse venues</div>
+                  <div className="cmd-sub">Lecture halls · Seminar rooms · Labs</div>
+                </div>
+                <span className="cmd-arrow">›</span>
               </Link>
               {isAdmin && (
-                <Link to="/admin/approvals">
-                  <span className="qi" style={{ background: 'var(--success)' }}><Icon.Approvals strokeWidth={1.8} /></span>
-                  <div><div className="qt">Review approvals</div><div className="qd">{pendingCount} {pendingCount === 1 ? 'request' : 'requests'} in the queue</div></div>
+                <Link className="cmd-item" to="/admin/approvals">
+                  <div>
+                    <div className="cmd-label">Review approvals</div>
+                    <div className={`cmd-sub${pendingCount > 0 ? ' urgent' : ''}`}>
+                      {pendingCount > 0 ? `${pendingCount} waiting for decision` : 'No pending requests'}
+                    </div>
+                  </div>
+                  <span className="cmd-arrow">›</span>
                 </Link>
               )}
             </div>
@@ -302,14 +311,13 @@ export default function DashboardPage() {
             <div className="card-head"><h3>Recent activity</h3></div>
             <div className="activity">
               {loading && [1, 2, 3].map(i => (
-                <div key={i} className="act-item"><div className="skeleton" style={{ width: '100%', height: 14 }} /></div>
+                <div key={i} className="act-item" style={{ gap: 0 }}><div className="skeleton" style={{ width: '100%', height: 14 }} /></div>
               ))}
               {!loading && activity.length === 0 && (
                 <div className="empty" style={{ padding: '2rem 1rem' }}><span>No activity yet.</span></div>
               )}
               {!loading && activity.map((a, i) => (
-                <div className="act-item" key={i}>
-                  <span className="ad" style={{ background: a.color }} />
+                <div className="act-item" key={i} style={{ paddingLeft: '1.3rem' }}>
                   <div>
                     <div className="at">{a.html}</div>
                     <div className="ax">{relTime(a.ts)}</div>
