@@ -1,0 +1,106 @@
+/* ── Venue calendar page ── */
+
+.vcal-page { max-width: 1320px; }
+
+.vcal-nav {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+.vcal-range {
+  font-family: var(--font-mono); font-size: .8rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-65);
+  flex: 1;
+}
+
+.vcal-wrap { position: relative; overflow: hidden; }
+.vcal-loading { position: absolute; inset: 0; z-index: 2; }
+
+/* grid: 60px time col + 7 equal day cols */
+.vcal-grid {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+}
+
+/* Day headers */
+.vcal-dayhdr {
+  text-align: center; padding: .9rem .4rem;
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.vcal-dayhdr.today { background: var(--accent-soft); }
+.vcal-timecol { border-bottom: 1px solid var(--line); }
+.vcal-wd {
+  display: block; font-family: var(--font-mono); font-size: .58rem;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--ink-45);
+}
+.vcal-dn {
+  display: block; font-family: var(--font-display); font-weight: 700;
+  font-size: 1.2rem; margin-top: 1px;
+}
+.vcal-dayhdr.today .vcal-dn { color: var(--accent-ink); }
+
+/* Body */
+.vcal-body-wrap { overflow-y: auto; max-height: 680px; }
+.vcal-body { align-items: stretch; }
+
+.vcal-labels {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+.vcal-hlabel {
+  flex: 1; min-height: 60px;
+  font-family: var(--font-mono); font-size: .58rem; color: var(--ink-45);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: .35rem .5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.vcal-daycol {
+  position: relative; min-height: 900px;
+  border-left: 1px solid var(--line);
+}
+.vcal-daycol.today { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+
+.vcal-hline {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: var(--line); pointer-events: none;
+}
+
+/* Booking blocks */
+.vcal-block {
+  position: absolute; left: 3px; right: 3px;
+  border-radius: var(--r-sm); padding: .3rem .5rem;
+  border-left: 3px solid; background: var(--surface-2);
+  cursor: default; overflow: hidden;
+  transition: box-shadow .2s var(--ease);
+  min-height: 22px;
+}
+.vcal-block:hover { box-shadow: var(--sh-1); z-index: 1; }
+.vcal-block-dot { display: none; }
+.vcal-block-time {
+  display: block; font-family: var(--font-mono); font-size: .6rem;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--ink-45);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vcal-block-title {
+  display: block; font-size: .78rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* Legend */
+.vcal-legend {
+  display: flex; gap: 1.2rem; margin-top: .8rem;
+}
+.vcal-leg-item {
+  display: flex; align-items: center; gap: .4rem;
+  font-family: var(--font-mono); font-size: .68rem;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-65);
+}
+.vcal-leg-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+@media (max-width: 700px) {
+  .vcal-grid { grid-template-columns: 40px repeat(7, 1fr); }
+  .vcal-block-title { display: none; }
+  .vcal-block-time { font-size: .52rem; }
+}

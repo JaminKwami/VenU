@@ -5,9 +5,11 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
+import VenueCalendarPage from './pages/VenueCalendarPage';
 import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
+import AdminSettingsPage from './pages/AdminSettingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
@@ -35,11 +37,13 @@ export default function App() {
             <Route path='/dashboard' element={<DashboardPage />} />
             <Route path='/venues'    element={<VenuesPage />} />
             <Route path='/venues/:id' element={<VenueDetailPage />} />
+            <Route path='/venues/:id/calendar' element={<VenueCalendarPage />} />
             <Route path='/book'      element={<BookingPage />} />
 
             <Route element={<AdminRoute />}>
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
               <Route path='/admin/venues'    element={<ManageVenuesPage />} />
+              <Route path='/admin/settings'  element={<AdminSettingsPage />} />
             </Route>
 
             <Route path='*' element={<NotFoundPage />} />

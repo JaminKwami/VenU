@@ -11,6 +11,7 @@ export default function ManageVenuesPage() {
   usePageTitle('Manage Venues');
   useTopbar('Manage Venues', null);
   const [venues, setVenues] = useState(null);
+  const [statsMap, setStatsMap] = useState({});
   const [search, setSearch] = useState('');
   const [building, setBuilding] = useState('All buildings');
   const [status, setStatus] = useState('All statuses');
@@ -22,6 +23,11 @@ export default function ManageVenuesPage() {
 
   useEffect(() => {
     api.get('/venues/').then(r => setVenues(r.data)).catch(() => setVenues([]));
+    api.get('/venues/stats/').then(r => {
+      const map = {};
+      r.data.forEach(s => { map[s.venue_id] = s; });
+      setStatsMap(map);
+    }).catch(() => {});
   }, []);
 
   const buildings = useMemo(
@@ -85,7 +91,10 @@ export default function ManageVenuesPage() {
   const total = venues?.length || 0;
   const bookable = (venues || []).filter(v => v.is_active).length;
   const maintenance = total - bookable;
-  const utilAvg = venues && venues.length ? Math.round(venues.reduce((acc, v) => acc + (v.capacity ? 1 : 0), 0) / venues.length * 70) : 0;
+  const utilVals = Object.values(statsMap);
+  const utilAvg = utilVals.length
+    ? Math.round(utilVals.reduce((a, s) => a + s.utilisation_pct, 0) / utilVals.length)
+    : 0;
 
   return (
     <div className="page" style={{ maxWidth: 1320 }} ref={revealRef}>
@@ -160,10 +169,17 @@ export default function ManageVenuesPage() {
                   <td className="hide-sm"><span className="badge badge-neutral">{v.venue_type || '—'}</span></td>
                   <td className="mono" style={{ fontWeight: 700 }}>{v.capacity}</td>
                   <td className="hide-sm">
-                    <div className="row" style={{ gap: '.6rem', alignItems: 'center' }}>
-                      <div className="cap-bar util-bar"><span style={{ width: '68%', background: 'var(--accent)' }} /></div>
-                      <span className="mono" style={{ fontSize: '.78rem', color: 'var(--ink-65)' }}>68%</span>
-                    </div>
+                    {(() => {
+                      const s = statsMap[v.id];
+                      const pct = s ? s.utilisation_pct : 0;
+                      const label = s ? `${pct}%` : '—';
+                      return (
+                        <div className="row" style={{ gap: '.6rem', alignItems: 'center' }}>
+                          <div className="cap-bar util-bar"><span style={{ width: `${pct}%`, background: 'var(--accent)' }} /></div>
+                          <span className="mono" style={{ fontSize: '.78rem', color: 'var(--ink-65)' }}>{label}</span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td>{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
                   <td>

@@ -9,11 +9,13 @@ from rest_framework.views import APIView
 
 from core.permissions import IsAdmin, IsOwnerOrAdmin
 from venues.models import Venue
-from .models import Booking, BookingStatus, WaitlistEntry
+from .models import AutoApprovalRule, Booking, BookingStatus, TermDate, WaitlistEntry
 from .serializers import (
+    AutoApprovalRuleSerializer,
     BookingSerializer,
     BookingCreateSerializer,
     BookingStatusSerializer,
+    TermDateSerializer,
     WaitlistEntrySerializer,
 )
 from . import services
@@ -61,7 +63,6 @@ class BookingListCreateView(APIView):
 
         data = serializer.validated_data
 
-        # Resolve venue FK
         venue = data.get('venue')
         if not venue.is_active:
             return Response(
@@ -136,9 +137,7 @@ class BookingDetailView(APIView):
 
 
 class BookingApproveView(APIView):
-    """
-    PATCH /api/bookings/{id}/approve/  — admin only
-    """
+    """PATCH /api/bookings/{id}/approve/  — admin only"""
     permission_classes = [IsAdmin]
 
     def patch(self, request, pk):
@@ -156,9 +155,7 @@ class BookingApproveView(APIView):
 
 
 class BookingRejectView(APIView):
-    """
-    PATCH /api/bookings/{id}/reject/  — admin only
-    """
+    """PATCH /api/bookings/{id}/reject/  — admin only"""
     permission_classes = [IsAdmin]
 
     def patch(self, request, pk):
@@ -180,9 +177,7 @@ class BookingRejectView(APIView):
 
 
 class BookingCancelView(APIView):
-    """
-    PATCH /api/bookings/{id}/cancel/  — owner or admin
-    """
+    """PATCH /api/bookings/{id}/cancel/  — owner or admin"""
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
@@ -203,21 +198,15 @@ class BookingAvailabilityView(APIView):
     """
     GET /api/bookings/availability/?venue={id}&date=YYYY-MM-DD
     Returns the taken (pending/approved) slots so users can pick a free time.
+    Also accepts date_from + date_to for a range (used by the venue calendar).
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         venue_id = request.query_params.get('venue')
-        date_str = request.query_params.get('date')
-        if not venue_id or not date_str:
+        if not venue_id:
             return Response(
-                {'detail': 'Both "venue" and "date" query parameters are required.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        date = parse_date(date_str)
-        if date is None:
-            return Response(
-                {'detail': 'Invalid date — use YYYY-MM-DD.'},
+                {'detail': '"venue" query parameter is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -225,14 +214,41 @@ class BookingAvailabilityView(APIView):
         except (Venue.DoesNotExist, ValueError):
             return Response({'detail': 'Venue not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        slots = services.get_taken_slots(venue, date)
-        return Response({'venue': venue.pk, 'date': date, 'taken_slots': list(slots)})
+        # Single-date mode
+        date_str = request.query_params.get('date')
+        if date_str:
+            date = parse_date(date_str)
+            if date is None:
+                return Response({'detail': 'Invalid date — use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            slots = services.get_taken_slots(venue, date)
+            return Response({'venue': venue.pk, 'date': date, 'taken_slots': list(slots)})
+
+        # Range mode: date_from + date_to (max 31 days)
+        date_from = parse_date(request.query_params.get('date_from') or '')
+        date_to = parse_date(request.query_params.get('date_to') or '')
+        if not date_from or not date_to:
+            return Response(
+                {'detail': 'Provide either "date" or both "date_from" and "date_to".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        qs = (
+            Booking.objects
+            .filter(
+                venue=venue,
+                date__range=[date_from, date_to],
+                status__in=['PENDING', 'APPROVED'],
+            )
+            .order_by('date', 'start_time')
+            .values('date', 'start_time', 'end_time', 'status', 'purpose')
+        )
+        return Response({'venue': venue.pk, 'date_from': date_from, 'date_to': date_to, 'slots': list(qs)})
 
 
 class BookingExportView(APIView):
     """
     GET /api/bookings/export/  — download the user's approved bookings
-    as an iCalendar (.ics) file for Outlook / Google / Apple Calendar.
+    as an iCalendar (.ics) file.
     """
     permission_classes = [IsAuthenticated]
 
@@ -247,6 +263,33 @@ class BookingExportView(APIView):
         response = HttpResponse(ical, content_type='text/calendar; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="venu-bookings.ics"'
         return response
+
+
+class BookingCheckInView(APIView):
+    """
+    POST /api/bookings/{id}/checkin/
+    Body: {"token": "<check_in_token>"}
+    Marks the booking as checked in.  Owner or admin only.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        is_owner = booking.user_id == request.user.pk
+        if not (is_owner or request.user.is_admin or request.user.is_staff_member):
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        token = request.data.get('token', '')
+        try:
+            booking = services.check_in_booking(booking, token)
+        except ValidationError as exc:
+            return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(BookingSerializer(booking).data)
 
 
 class WaitlistView(APIView):
@@ -283,9 +326,7 @@ class WaitlistView(APIView):
 
 
 class WaitlistDetailView(APIView):
-    """
-    DELETE /api/bookings/waitlist/{id}/  — leave the waitlist
-    """
+    """DELETE /api/bookings/waitlist/{id}/  — leave the waitlist"""
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
@@ -294,4 +335,88 @@ class WaitlistDetailView(APIView):
         except WaitlistEntry.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         entry.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Admin settings views ──────────────────────────────────────────────────────
+
+class AutoApprovalRuleListView(APIView):
+    """
+    GET  /api/admin/approval-rules/  — list all rules
+    POST /api/admin/approval-rules/  — create a rule
+    Admin only.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        rules = AutoApprovalRule.objects.select_related('venue').all()
+        return Response(AutoApprovalRuleSerializer(rules, many=True).data)
+
+    def post(self, request):
+        s = AutoApprovalRuleSerializer(data=request.data)
+        if s.is_valid():
+            s.save()
+            return Response(s.data, status=status.HTTP_201_CREATED)
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AutoApprovalRuleDetailView(APIView):
+    """
+    PATCH  /api/admin/approval-rules/{id}/
+    DELETE /api/admin/approval-rules/{id}/
+    """
+    permission_classes = [IsAdmin]
+
+    def _get(self, pk):
+        try:
+            return AutoApprovalRule.objects.get(pk=pk)
+        except AutoApprovalRule.DoesNotExist:
+            return None
+
+    def patch(self, request, pk):
+        rule = self._get(pk)
+        if rule is None:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        s = AutoApprovalRuleSerializer(rule, data=request.data, partial=True)
+        if s.is_valid():
+            s.save()
+            return Response(s.data)
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        rule = self._get(pk)
+        if rule is None:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        rule.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TermDateListView(APIView):
+    """
+    GET  /api/admin/term-dates/  — list all term/holiday periods
+    POST /api/admin/term-dates/  — create a period
+    Admin only.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        return Response(TermDateSerializer(TermDate.objects.all(), many=True).data)
+
+    def post(self, request):
+        s = TermDateSerializer(data=request.data)
+        if s.is_valid():
+            s.save()
+            return Response(s.data, status=status.HTTP_201_CREATED)
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TermDateDetailView(APIView):
+    """DELETE /api/admin/term-dates/{id}/"""
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        try:
+            TermDate.objects.get(pk=pk).delete()
+        except TermDate.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)

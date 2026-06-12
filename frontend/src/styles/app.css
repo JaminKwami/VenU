@@ -202,6 +202,15 @@
 .toggle.on::after { transform: translateX(17px); }
 @media (max-width: 980px){ .mg-stats{grid-template-columns:repeat(2,1fr)} .hide-sm{display:none} }
 
+/* ── Admin settings ── */
+.settings-inline-form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
+.settings-inline-form .field { margin: 0; }
+.settings-inline-form .field label { font-size: .78rem; }
+
+/* ── Check-in code chip on booking items ── */
+.bi-checkin { font-family: var(--font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); border-radius: var(--r-sm); padding: .15em .5em; white-space: nowrap; }
+.bi-checkin.done { color: var(--ink-45); background: var(--surface-2); border-color: var(--line); }
+
 /* ── Shared: modal overlay (manage venue editor, decline reason) ── */
 .modal-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 80; display: grid; place-items: center; padding: 1.2rem; animation: fadeIn .25s var(--ease); }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

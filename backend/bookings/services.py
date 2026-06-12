@@ -6,17 +6,20 @@ signals, or a future async task queue without touching HTTP code.
 """
 
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.db import models
 from django.utils import timezone
 
-from .models import Booking, BookingStatus, WaitlistEntry
+from .models import AutoApprovalRule, Booking, BookingStatus, TermDate, WaitlistEntry
 
 MAX_RECURRENCES = 26  # half a year of weekly bookings
 
+
+# ── Conflict detection ────────────────────────────────────────────────────────
 
 def check_booking_conflict(venue, date, start_time, end_time, exclude_booking_id=None):
     """
@@ -27,14 +30,6 @@ def check_booking_conflict(venue, date, start_time, end_time, exclude_booking_id
         existing.start_time < requested.end_time
         AND
         existing.end_time   > requested.start_time
-
-    Parameters
-    ----------
-    venue            : Venue instance
-    date             : datetime.date
-    start_time       : datetime.time
-    end_time         : datetime.time
-    exclude_booking_id : int | None  — skip this booking ID (used on updates)
     """
     conflicting_statuses = [BookingStatus.PENDING, BookingStatus.APPROVED]
 
@@ -74,11 +69,56 @@ def get_taken_slots(venue, date):
     )
 
 
+# ── Auto-approval ─────────────────────────────────────────────────────────────
+
+def _should_auto_approve(venue, date, start_time, end_time, attendee_count):
+    """
+    Return True if the booking matches any enabled AutoApprovalRule.
+    Checks: attendee count, duration, and advance notice.
+    """
+    now = timezone.now()
+    booking_start = timezone.make_aware(datetime.combine(date, start_time))
+    notice_hours = (booking_start - now).total_seconds() / 3600
+
+    duration_hours = (
+        datetime.combine(date, end_time) - datetime.combine(date, start_time)
+    ).total_seconds() / 3600
+
+    rules = AutoApprovalRule.objects.filter(
+        enabled=True,
+    ).filter(
+        models.Q(venue=venue) | models.Q(venue__isnull=True)
+    )
+
+    for rule in rules:
+        attendees_ok = attendee_count is None or attendee_count <= rule.max_attendees
+        duration_ok = duration_hours <= rule.max_duration_hours
+        notice_ok = notice_hours >= rule.min_notice_hours
+        if attendees_ok and duration_ok and notice_ok:
+            return True
+    return False
+
+
+# ── Term / holiday helpers ────────────────────────────────────────────────────
+
+def _is_term_skip(date):
+    """Return True if date falls in a TermDate period with skip_in_recurrence=True."""
+    return TermDate.objects.filter(
+        skip_in_recurrence=True,
+        start_date__lte=date,
+        end_date__gte=date,
+    ).exists()
+
+
+# ── Create bookings ───────────────────────────────────────────────────────────
+
 def create_booking(user, venue, date, start_time, end_time, purpose='',
                    attendee_count=None, department='', notes='', series_id=None):
     """
     Validate and create a new Booking.  Always call this instead of
     Booking.objects.create() directly.
+
+    If an auto-approval rule matches, the booking is immediately approved.
     """
     if date < timezone.localdate():
         raise ValidationError('Bookings cannot be made for past dates.')
@@ -91,6 +131,12 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
 
     check_booking_conflict(venue, date, start_time, end_time)
 
+    initial_status = BookingStatus.PENDING
+    decided_at = None
+    if _should_auto_approve(venue, date, start_time, end_time, attendee_count):
+        initial_status = BookingStatus.APPROVED
+        decided_at = timezone.now()
+
     return Booking.objects.create(
         user=user,
         venue=venue,
@@ -101,7 +147,8 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
         department=department,
         notes=notes,
         attendee_count=attendee_count,
-        status=BookingStatus.PENDING,
+        status=initial_status,
+        decided_at=decided_at,
         series_id=series_id,
     )
 
@@ -110,8 +157,8 @@ def create_recurring_bookings(user, venue, date, start_time, end_time,
                               frequency, until, **details):
     """
     Create a weekly or bi-weekly series of bookings from `date` to `until`
-    (inclusive).  Dates that clash with existing bookings are skipped rather
-    than failing the whole series.
+    (inclusive).  Dates that clash with existing bookings, or that fall within
+    a TermDate skip period, are skipped rather than failing the whole series.
 
     Returns (created_bookings, skipped_dates).
     """
@@ -123,6 +170,10 @@ def create_recurring_bookings(user, venue, date, start_time, end_time,
     created, skipped = [], []
     current = date
     while current <= until and len(created) + len(skipped) < MAX_RECURRENCES:
+        if _is_term_skip(current):
+            skipped.append(current)
+            current += step
+            continue
         try:
             created.append(create_booking(
                 user=user, venue=venue, date=current,
@@ -134,9 +185,11 @@ def create_recurring_bookings(user, venue, date, start_time, end_time,
         current += step
 
     if not created:
-        raise ValidationError('Every date in the series clashes with an existing booking.')
+        raise ValidationError('Every date in the series clashes with an existing booking or is within a blocked period.')
     return created, skipped
 
+
+# ── Waitlist ──────────────────────────────────────────────────────────────────
 
 def join_waitlist(user, venue, date, start_time, end_time):
     """Add the user to the waitlist for a slot that is currently taken."""
@@ -179,6 +232,53 @@ def _notify_waitlist(booking):
         )
     entries.update(notified=True)
 
+
+# ── Check-in ──────────────────────────────────────────────────────────────────
+
+def check_in_booking(booking, token):
+    """
+    Mark a booking as checked in.  Validates the check-in token that was
+    issued when the booking was created.
+    """
+    if str(booking.check_in_token) != str(token):
+        raise ValidationError('Invalid check-in code.')
+    if booking.status != BookingStatus.APPROVED:
+        raise ValidationError('Only approved bookings can be checked in.')
+    if booking.checked_in_at is not None:
+        raise ValidationError('This booking has already been checked in.')
+    booking.checked_in_at = timezone.now()
+    booking.save(update_fields=['checked_in_at', 'updated_at'])
+    return booking
+
+
+def auto_release_no_shows(grace_minutes=15):
+    """
+    Cancel approved bookings where no check-in was recorded within
+    `grace_minutes` of the scheduled start time.  Returns the count released.
+    Called by the auto_release_no_shows management command.
+    """
+    now = timezone.now()
+    today = now.date()
+    cutoff_dt = now - timedelta(minutes=grace_minutes)
+    cutoff_time = cutoff_dt.time()
+
+    no_shows = Booking.objects.filter(
+        status=BookingStatus.APPROVED,
+        date=today,
+        start_time__lte=cutoff_time,
+        checked_in_at__isnull=True,
+    )
+
+    count = 0
+    for booking in no_shows:
+        booking.status = BookingStatus.CANCELLED
+        booking.save(update_fields=['status', 'updated_at'])
+        _notify_waitlist(booking)
+        count += 1
+    return count
+
+
+# ── Approval workflow ─────────────────────────────────────────────────────────
 
 def approve_booking(booking, decided_by=None):
     """Approve a pending booking, stamping who decided and when."""
@@ -235,6 +335,8 @@ def cancel_booking(booking, cancelled_by):
     _notify_waitlist(booking)
     return booking
 
+
+# ── iCalendar export ──────────────────────────────────────────────────────────
 
 def build_ical(bookings):
     """

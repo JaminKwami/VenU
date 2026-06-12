@@ -186,12 +186,20 @@ export default function DashboardPage() {
               {!loading && upcoming.slice(0, 5).map(b => {
                 const chip = dateChip(b.date);
                 const [cls, label] = STATUS_BADGE[b.status];
+                const tokenShort = b.check_in_token ? b.check_in_token.replace(/-/g, '').slice(0, 8).toUpperCase() : null;
                 return (
                   <div className="booking-item" key={b.id}>
                     <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
                     <div className="bi-main">
                       <div className="t">{b.purpose || b.venue.name}</div>
-                      <div className="s">{b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)} · <span className="mono" style={{ fontSize: '.78rem' }}>{b.venue.capacity} cap</span></div>
+                      <div className="s">
+                        {b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)} · <span className="mono" style={{ fontSize: '.78rem' }}>{b.venue.capacity} cap</span>
+                        {b.status === 'APPROVED' && tokenShort && (
+                          <span className={`bi-checkin${b.checked_in_at ? ' done' : ''}`} title={b.checked_in_at ? 'Checked in' : 'Check-in code'}>
+                            {b.checked_in_at ? 'Checked in' : tokenShort}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className={`badge ${cls}`}><span className="dot" />{label}</span>
                   </div>

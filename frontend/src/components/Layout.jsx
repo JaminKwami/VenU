@@ -71,6 +71,7 @@ export default function Layout() {
             <div className="sb-section">Administration</div>
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
             {navLink('/admin/venues', 'Manage Venues', Icon.Manage)}
+            {navLink('/admin/settings', 'Settings', Icon.Settings)}
           </>
         )}
       </nav>

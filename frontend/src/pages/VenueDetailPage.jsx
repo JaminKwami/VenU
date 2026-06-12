@@ -106,9 +106,18 @@ export default function VenueDetailPage() {
           <span className={`badge ${venue.is_active ? 'badge-approved' : 'badge-cancelled'}`} style={{ background: 'rgba(255,255,255,.9)' }}>
             <span className="dot" />{venue.is_active ? 'Bookable' : 'Unavailable'}
           </span>
-          <span className="badge" style={{ background: 'rgba(0,0,0,.3)', color: '#fff', backdropFilter: 'blur(4px)' }}>
-            CAP {venue.capacity}
-          </span>
+          <div className="row" style={{ gap: '.5rem' }}>
+            <Link
+              to={`/venues/${id}/calendar`}
+              className="btn btn-sm"
+              style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.3)', backdropFilter: 'blur(4px)' }}
+            >
+              <Icon.Calendar width={14} height={14} /> Full calendar
+            </Link>
+            <span className="badge" style={{ background: 'rgba(0,0,0,.3)', color: '#fff', backdropFilter: 'blur(4px)' }}>
+              CAP {venue.capacity}
+            </span>
+          </div>
         </div>
         <div className="hname">
           <h1>{venue.name}</h1>

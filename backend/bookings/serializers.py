@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from users.serializers import UserSerializer
 from venues.serializers import VenueSerializer
-from .models import Booking, WaitlistEntry
+from .models import AutoApprovalRule, Booking, TermDate, WaitlistEntry
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -21,12 +21,15 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'venue', 'date', 'start_time', 'end_time',
             'status', 'purpose', 'department', 'notes', 'attendee_count',
-            'rejection_reason', 'series_id', 'decided_by', 'decided_at',
+            'rejection_reason', 'series_id',
+            'check_in_token', 'checked_in_at',
+            'decided_by', 'decided_at',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'status', 'rejection_reason', 'series_id', 'decided_by',
-            'decided_at', 'created_at', 'updated_at',
+            'id', 'status', 'rejection_reason', 'series_id',
+            'check_in_token', 'checked_in_at',
+            'decided_by', 'decided_at', 'created_at', 'updated_at',
         ]
 
 
@@ -71,4 +74,31 @@ class WaitlistEntrySerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data['end_time'] <= data['start_time']:
             raise serializers.ValidationError({'end_time': 'End time must be after start time.'})
+        return data
+
+
+class AutoApprovalRuleSerializer(serializers.ModelSerializer):
+    """Read/write for auto-approval rules.  venue is a FK int on write."""
+
+    venue_name = serializers.CharField(source='venue.name', read_only=True, default=None)
+
+    class Meta:
+        model = AutoApprovalRule
+        fields = [
+            'id', 'venue', 'venue_name',
+            'max_attendees', 'max_duration_hours', 'min_notice_hours',
+            'enabled', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class TermDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TermDate
+        fields = ['id', 'name', 'start_date', 'end_date', 'skip_in_recurrence']
+        read_only_fields = ['id']
+
+    def validate(self, data):
+        if data.get('end_date') and data.get('start_date') and data['end_date'] < data['start_date']:
+            raise serializers.ValidationError({'end_date': 'End date must be on or after start date.'})
         return data

@@ -1,4 +1,5 @@
-from datetime import datetime
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -136,3 +137,44 @@ class VenueAlternativesView(APIView):
             results.append(data)
 
         return Response(results)
+
+
+class VenueStatsView(APIView):
+    """
+    GET /api/venues/stats/
+    Returns utilisation stats for all venues based on approved bookings in the
+    last 30 days.  Admin only — used by the Manage Venues screen.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        from bookings.models import Booking, BookingStatus
+
+        since = date.today() - timedelta(days=30)
+        WORKING_HOURS = 30 * 8  # 30 days × 8h available per day
+
+        bookings = (
+            Booking.objects
+            .filter(status=BookingStatus.APPROVED, date__gte=since)
+            .only('venue_id', 'date', 'start_time', 'end_time')
+        )
+
+        stats = defaultdict(lambda: {'count': 0, 'hours': 0.0})
+        for b in bookings:
+            dur = (
+                datetime.combine(b.date, b.end_time) -
+                datetime.combine(b.date, b.start_time)
+            ).total_seconds() / 3600
+            stats[b.venue_id]['count'] += 1
+            stats[b.venue_id]['hours'] += dur
+
+        result = [
+            {
+                'venue_id': vid,
+                'booking_count_30d': s['count'],
+                'booked_hours_30d': round(s['hours'], 1),
+                'utilisation_pct': round(min(s['hours'] / WORKING_HOURS * 100, 100), 1),
+            }
+            for vid, s in stats.items()
+        ]
+        return Response(result)
