@@ -39,6 +39,8 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
+  const [alternatives, setAlternatives] = useState([]);
+  const [loadingAlternatives, setLoadingAlternatives] = useState(false);
   const revealRef = useReveal([venues.length > 0]);
 
   useEffect(() => {
@@ -57,6 +59,28 @@ export default function BookingPage() {
       .catch(() => { if (!stale) setTaken([]); });
     return () => { stale = true; };
   }, [venueId, date]);
+
+  useEffect(() => {
+    if (!clash || !venue || hour === null) {
+      setAlternatives([]);
+      return;
+    }
+    setLoadingAlternatives(true);
+    const startTime = pad(hour);
+    const endTime = pad(hour + duration);
+    api.get('/venues/alternatives/', {
+      params: {
+        date,
+        start_time: startTime,
+        end_time: endTime,
+        current_venue_id: venue.id,
+        min_capacity: attendees ? Number(attendees) : 1,
+      },
+    })
+      .then(r => setAlternatives(r.data))
+      .catch(() => setAlternatives([]))
+      .finally(() => setLoadingAlternatives(false));
+  }, [clash, venue, hour, duration, date, attendees]);
 
   const venue = venues.find(v => v.id === Number(venueId));
   const clash = hour != null && overlaps(taken, hour, duration);
@@ -101,6 +125,13 @@ export default function BookingPage() {
 
   function reset() {
     setStep(1); setHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
+  }
+
+  function selectAlternativeVenue(altVenue) {
+    setVenueId(altVenue.id);
+    setStep(1);
+    setAlternatives([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
@@ -170,13 +201,50 @@ export default function BookingPage() {
                 </select>
               </div>
               {hour != null && (
-                <div className={`conflict${clash ? '' : ' ok'}`}>
-                  {clash ? <Icon.X strokeWidth={2} /> : <Icon.Approvals strokeWidth={2} />}
-                  <span>
-                    {clash
-                      ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
-                      : `${pad(hour)}–${pad(hour + duration)} is free. No clashes detected for this slot.`}
-                  </span>
+                <div>
+                  <div className={`conflict${clash ? '' : ' ok'}`}>
+                    {clash ? <Icon.X strokeWidth={2} /> : <Icon.Approvals strokeWidth={2} />}
+                    <span>
+                      {clash
+                        ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
+                        : `${pad(hour)}–${pad(hour + duration)} is free. No clashes detected for this slot.`}
+                    </span>
+                  </div>
+
+                  {clash && (
+                    <div className="alternatives">
+                      {loadingAlternatives ? (
+                        <div className="skeleton" style={{ height: '100px' }} />
+                      ) : alternatives.length > 0 ? (
+                        <>
+                          <p className="sub">✨ Available alternatives:</p>
+                          <div className="alt-grid">
+                            {alternatives.map(alt => (
+                              <button
+                                key={alt.id}
+                                className="alt-card"
+                                onClick={() => selectAlternativeVenue(alt)}
+                              >
+                                <div className="alt-name">{alt.name}</div>
+                                <div className="alt-specs">
+                                  {alt.capacity} capacity • {alt.similarity_score.toFixed(0)}% match
+                                </div>
+                                {alt.amenities?.length > 0 && (
+                                  <div className="alt-amenities">
+                                    {alt.amenities.slice(0, 2).map(a => (
+                                      <span key={a} className="amenity-tag">{a}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="conflict-info">No alternatives available at this time.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

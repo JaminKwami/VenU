@@ -1,3 +1,5 @@
+from datetime import time
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -6,6 +8,7 @@ from rest_framework.views import APIView
 from core.permissions import IsAdmin
 from .models import Venue
 from .serializers import VenueSerializer
+from .services import get_venue_alternatives
 
 
 class VenueListCreateView(APIView):
@@ -85,3 +88,52 @@ class VenueDetailView(APIView):
         venue.is_active = False
         venue.save(update_fields=['is_active', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VenueAlternativesView(APIView):
+    """
+    GET /api/venues/alternatives/  — find similar venues available at requested time
+
+    Query parameters:
+    - date: YYYY-MM-DD
+    - start_time: HH:MM:SS
+    - end_time: HH:MM:SS
+    - current_venue_id: int
+    - min_capacity: int
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            date_str = request.query_params.get('date')
+            start_time_str = request.query_params.get('start_time')
+            end_time_str = request.query_params.get('end_time')
+            current_venue_id = int(request.query_params.get('current_venue_id'))
+            min_capacity = int(request.query_params.get('min_capacity', 1))
+
+            if not all([date_str, start_time_str, end_time_str]):
+                return Response(
+                    {'detail': 'Missing required parameters: date, start_time, end_time'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            from datetime import datetime
+            date = datetime.fromisoformat(date_str).date()
+            start_time = datetime.fromisoformat(f'2000-01-01T{start_time_str}').time()
+            end_time = datetime.fromisoformat(f'2000-01-01T{end_time_str}').time()
+        except (ValueError, TypeError) as e:
+            return Response(
+                {'detail': f'Invalid parameter format: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ranked = get_venue_alternatives(date, start_time, end_time, current_venue_id, min_capacity)
+
+        results = []
+        for venue, score in ranked:
+            data = VenueSerializer(venue).data
+            data['similarity_score'] = score
+            results.append(data)
+
+        return Response(results)
