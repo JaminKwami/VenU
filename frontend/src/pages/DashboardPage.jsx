@@ -31,14 +31,31 @@ function weekDays() {
   });
 }
 
+async function downloadIcs() {
+  const res = await api.get('/bookings/export/', { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'venu-bookings.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function DashboardPage() {
   usePageTitle('Dashboard');
   useTopbar('Dashboard', (
-    <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
+    <>
+      <button className="btn btn-outline btn-sm" onClick={() => downloadIcs().catch(() => {})}>
+        <Icon.Calendar width={15} height={15} /> Export .ics
+      </button>
+      <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
+    </>
   ));
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const [bookings, setBookings] = useState(null);
+  const [histStatus, setHistStatus] = useState('All');
+  const [histQuery, setHistQuery] = useState('');
   const revealRef = useReveal([bookings != null]);
 
   useEffect(() => {
@@ -92,6 +109,17 @@ export default function DashboardPage() {
     });
     return map;
   }, [bookings]);
+
+  const history = useMemo(() => {
+    const q = histQuery.toLowerCase();
+    return (bookings || [])
+      .filter(b =>
+        (histStatus === 'All' || b.status === histStatus) &&
+        (!q || (b.purpose || '').toLowerCase().includes(q) ||
+          b.venue.name.toLowerCase().includes(q) ||
+          (b.department || '').toLowerCase().includes(q)))
+      .sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time));
+  }, [bookings, histStatus, histQuery]);
 
   const loading = bookings == null;
   const firstName = (user?.full_name || user?.email || '').split(/[\s@]/)[0];
@@ -187,6 +215,46 @@ export default function DashboardPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="card reveal">
+            <div className="card-head" style={{ gap: '.8rem', flexWrap: 'wrap' }}>
+              <h3>All bookings</h3>
+              <div className="row" style={{ gap: '.5rem' }}>
+                <input
+                  className="input" style={{ maxWidth: 180, padding: '.45rem .8rem', fontSize: '.85rem' }}
+                  placeholder="Search…" value={histQuery} onChange={e => setHistQuery(e.target.value)}
+                />
+                <select className="select" style={{ maxWidth: 130, padding: '.45rem 2.2rem .45rem .8rem', fontSize: '.85rem' }} value={histStatus} onChange={e => setHistStatus(e.target.value)}>
+                  <option>All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              {!loading && history.length === 0 && (
+                <div className="empty" style={{ padding: '2rem 1rem' }}>
+                  <span>{histQuery || histStatus !== 'All' ? 'Nothing matches those filters.' : 'No bookings yet.'}</span>
+                </div>
+              )}
+              {!loading && history.slice(0, 8).map(b => {
+                const chip = dateChip(b.date);
+                const [cls, label] = STATUS_BADGE[b.status];
+                return (
+                  <div className="booking-item" key={b.id}>
+                    <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
+                    <div className="bi-main">
+                      <div className="t">{b.purpose || b.venue.name}</div>
+                      <div className="s">{b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)}{b.rejection_reason ? <> · <span style={{ color: 'var(--danger)' }}>{b.rejection_reason}</span></> : null}</div>
+                    </div>
+                    <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

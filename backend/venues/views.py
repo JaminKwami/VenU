@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import datetime
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -118,7 +118,6 @@ class VenueAlternativesView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            from datetime import datetime
             date = datetime.fromisoformat(date_str).date()
             start_time = datetime.fromisoformat(f'2000-01-01T{start_time_str}').time()
             end_time = datetime.fromisoformat(f'2000-01-01T{end_time_str}').time()

@@ -131,16 +131,16 @@
 .conflict { display: flex; align-items: center; gap: .7rem; padding: .9rem 1.1rem; border-radius: var(--r-md); background: var(--warn-soft); color: var(--warn); font-size: .88rem; margin-top: 1rem; }
 .conflict.ok { background: var(--success-soft); color: var(--success); }
 .conflict svg { width: 18px; height: 18px; flex-shrink: 0; }
-.alternatives { margin-top: 1rem; padding: 1rem; background: var(--surface-2); border-radius: var(--r-md); }
-.alternatives .sub { font-size: .875rem; color: var(--ink-65); margin-bottom: .75rem; }
-.alt-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: .75rem; }
-.alt-card { padding: .75rem; background: var(--surface); border: 1px solid var(--ink-28); border-radius: var(--r-sm); text-align: left; cursor: pointer; transition: all .2s var(--ease); font-family: inherit; color: inherit; }
-.alt-card:hover { border-color: var(--accent); box-shadow: var(--sh-1); transform: translateY(-2px); }
-.alt-name { font-weight: 600; font-size: .875rem; color: var(--ink); margin-bottom: .25rem; }
-.alt-specs { font-size: .75rem; color: var(--ink-65); margin-bottom: .5rem; }
-.alt-amenities { display: flex; gap: .25rem; flex-wrap: wrap; }
-.amenity-tag { display: inline-block; background: var(--ink-28); color: var(--ink); padding: .2rem .5rem; border-radius: 4px; font-size: .65rem; }
-.conflict-info { font-size: .88rem; color: var(--ink-65); margin-top: .5rem; }
+.alternatives { margin-top: .9rem; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.alternatives .alt-head { font-family: var(--font-mono); font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-45); margin-bottom: .7rem; }
+.alt-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: .7rem; }
+.alt-card { padding: .8rem .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); text-align: left; cursor: pointer; font-family: inherit; color: inherit; transition: transform .35s var(--spring), border-color .25s var(--ease), box-shadow .3s var(--ease); }
+.alt-card:hover { border-color: var(--accent-line); box-shadow: var(--sh-1); transform: translateY(-2px); }
+.alt-name { font-weight: 600; font-size: .88rem; }
+.alt-specs { font-family: var(--font-mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-45); margin-top: 3px; }
+.alt-amenities { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: .55rem; }
+.alt-amenities span { padding: .15rem .5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--canvas-2); color: var(--ink-65); font-size: .68rem; }
+.alt-empty { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; font-size: .88rem; color: var(--ink-65); }
 .sum-card { position: sticky; top: 90px; padding: 1.5rem; }
 .sum-card h3 { font-size: 1.15rem; margin-bottom: 1rem; }
 .sum-line { display: flex; justify-content: space-between; gap: 1rem; padding: .55rem 0; font-size: .9rem; border-bottom: 1px solid var(--line); }

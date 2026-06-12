@@ -1,285 +1,148 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../api/axios';
 import { Icon } from './icons';
 import '../styles/venue-form.css';
 
+const VENUE_TYPES = [
+  'Seminar room', 'Lecture hall', 'Lab', 'Auditorium',
+  'Breakout room', 'Meeting room', 'Studio', 'Workshop',
+];
+
+const COMMON_AMENITIES = [
+  'Projector', 'Whiteboard', 'WiFi', 'Video conferencing',
+  'Wheelchair access', 'Air conditioning', 'PA system',
+];
+
+/* DRF errors arrive as {field: ["msg", ...]} or {detail: "msg"}. */
+const firstError = v => (Array.isArray(v) ? v[0] : v);
+
 export default function VenueForm({ venue = null, onSuccess, onCancel }) {
   const isEdit = !!venue;
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: venue?.name || '',
     location: venue?.location || '',
     building: venue?.building || '',
-    venue_type: venue?.venue_type || 'Seminar room',
-    capacity: venue?.capacity || 20,
+    venue_type: venue?.venue_type || VENUE_TYPES[0],
+    capacity: venue?.capacity ?? 20,
     amenities: venue?.amenities || [],
-    min_notice_hours: venue?.min_notice_hours || 24,
+    min_notice_hours: venue?.min_notice_hours ?? 24,
     description: venue?.description || '',
   });
-
-  const [amenityInput, setAmenityInput] = useState('');
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const venueTypes = [
-    'Seminar room',
-    'Lecture hall',
-    'Lab',
-    'Auditorium',
-    'Breakout room',
-    'Meeting room',
-    'Studio',
-    'Workshop',
-  ];
-
-  const commonAmenities = [
-    'Projector',
-    'Whiteboard',
-    'WiFi',
-    'Parking',
-    'Wheelchair access',
-    'Kitchen',
-    'Video conference',
-  ];
-
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'capacity' || name === 'min_notice_hours' ? parseInt(value) || 0 : value,
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+  function set(name, value) {
+    setForm(f => ({ ...f, [name]: value }));
+    if (errors[name]) setErrors(e => ({ ...e, [name]: null }));
   }
 
-  function addAmenity(amenity) {
-    if (!formData.amenities.includes(amenity)) {
-      setFormData(prev => ({
-        ...prev,
-        amenities: [...prev.amenities, amenity],
-      }));
-      setAmenityInput('');
-    }
-  }
-
-  function removeAmenity(amenity) {
-    setFormData(prev => ({
-      ...prev,
-      amenities: prev.amenities.filter(a => a !== amenity),
+  function toggleAmenity(a) {
+    setForm(f => ({
+      ...f,
+      amenities: f.amenities.includes(a)
+        ? f.amenities.filter(x => x !== a)
+        : [...f.amenities, a],
     }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const newErrors = {};
+    const local = {};
+    if (!form.name.trim()) local.name = 'A venue name is required.';
+    if (Number(form.capacity) < 1) local.capacity = 'Capacity must be at least 1.';
+    if (Object.keys(local).length) { setErrors(local); return; }
 
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (formData.capacity < 1) newErrors.capacity = 'Capacity must be at least 1';
-    if (formData.min_notice_hours < 0) newErrors.min_notice_hours = 'Cannot be negative';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    setLoading(true);
+    setSaving(true);
+    setErrors({});
     try {
-      const method = isEdit ? 'patch' : 'post';
-      const url = isEdit ? `/venues/${venue.id}/` : '/venues/';
-      const { data } = await api[method](url, formData);
-      onSuccess?.(data);
+      const res = isEdit
+        ? await api.patch(`/venues/${venue.id}/`, form)
+        : await api.post('/venues/', form);
+      onSuccess?.(res.data);
     } catch (err) {
-      const apiErrors = err.response?.data || {};
-      setErrors(apiErrors);
+      setErrors(err.response?.data || { detail: 'Could not save the venue — please try again.' });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div className="venue-form-modal">
+    <div className="venue-form-modal" role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit venue' : 'Create venue'}>
       <div className="venue-form-overlay" onClick={onCancel} />
       <div className="venue-form-container">
         <div className="venue-form-header">
-          <h2>{isEdit ? 'Edit Venue' : 'Create Venue'}</h2>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+          <h2>{isEdit ? `Edit ${venue.name}` : 'Add a venue'}</h2>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel} aria-label="Close">
             <Icon.X width={16} height={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="venue-form">
-          {/* Name */}
+        <form className="venue-form" onSubmit={handleSubmit}>
           <div className="field">
-            <label>Venue Name</label>
-            <input
-              className="input"
-              type="text"
-              name="name"
-              placeholder="e.g., Conference Room A"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              autoFocus
-            />
-            {errors.name && <p className="conflict">{errors.name}</p>}
+            <label>Venue name</label>
+            <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Turing Lecture Theatre" autoFocus />
+            {errors.name && <span className="field-error">{firstError(errors.name)}</span>}
           </div>
 
-          {/* Location & Building */}
           <div className="form-row">
-            <div className="field flex-1">
-              <label>Location</label>
-              <input
-                className="input"
-                type="text"
-                name="location"
-                placeholder="e.g., Building 2, 3rd Floor"
-                value={formData.location}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="field flex-1">
+            <div className="field">
               <label>Building</label>
-              <input
-                className="input"
-                type="text"
-                name="building"
-                placeholder="e.g., Building 2"
-                value={formData.building}
-                onChange={handleChange}
-              />
+              <input className="input" value={form.building} onChange={e => set('building', e.target.value)} placeholder="e.g. Engineering Block" />
+            </div>
+            <div className="field">
+              <label>Location</label>
+              <input className="input" value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Level 2, Room 204" />
             </div>
           </div>
 
-          {/* Type & Capacity */}
           <div className="form-row">
-            <div className="field flex-1">
+            <div className="field">
               <label>Type</label>
-              <select
-                className="input"
-                name="venue_type"
-                value={formData.venue_type}
-                onChange={handleChange}
-              >
-                {venueTypes.map(type => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
+              <select className="select" value={form.venue_type} onChange={e => set('venue_type', e.target.value)}>
+                {VENUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-            <div className="field flex-1">
+            <div className="field">
               <label>Capacity</label>
-              <input
-                className="input"
-                type="number"
-                name="capacity"
-                min="1"
-                value={formData.capacity}
-                onChange={handleChange}
-                required
-              />
-              {errors.capacity && <p className="conflict">{errors.capacity}</p>}
+              <input className="input" type="number" min="1" value={form.capacity} onChange={e => set('capacity', Number(e.target.value))} />
+              {errors.capacity && <span className="field-error">{firstError(errors.capacity)}</span>}
             </div>
           </div>
 
-          {/* Amenities */}
           <div className="field">
             <label>Amenities</label>
-            <div className="amenity-input-group">
-              <input
-                className="input"
-                type="text"
-                placeholder="Type or select from common ones"
-                value={amenityInput}
-                onChange={e => setAmenityInput(e.target.value)}
-                onKeyPress={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (amenityInput.trim()) {
-                      addAmenity(amenityInput.trim());
-                    }
-                  }
-                }}
-              />
-              <div className="common-amenities">
-                {commonAmenities.map(amenity => (
-                  <button
-                    key={amenity}
-                    type="button"
-                    className={`amenity-btn ${formData.amenities.includes(amenity) ? 'active' : ''}`}
-                    onClick={() =>
-                      formData.amenities.includes(amenity)
-                        ? removeAmenity(amenity)
-                        : addAmenity(amenity)
-                    }
-                  >
-                    {amenity}
-                  </button>
-                ))}
-              </div>
+            <div className="amenity-chips">
+              {COMMON_AMENITIES.map(a => (
+                <button key={a} type="button" className={`amenity-chip${form.amenities.includes(a) ? ' on' : ''}`} onClick={() => toggleAmenity(a)}>
+                  {a}
+                </button>
+              ))}
             </div>
-            {formData.amenities.length > 0 && (
-              <div className="amenity-tags">
-                {formData.amenities.map(amenity => (
-                  <span key={amenity} className="amenity-tag">
-                    {amenity}
-                    <button
-                      type="button"
-                      onClick={() => removeAmenity(amenity)}
-                      className="tag-remove"
-                    >
-                      <Icon.X width={12} height={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Min Notice Hours */}
-          <div className="field">
-            <label>Min Notice Hours</label>
-            <input
-              className="input"
-              type="number"
-              name="min_notice_hours"
-              min="0"
-              value={formData.min_notice_hours}
-              onChange={handleChange}
-            />
-            {errors.min_notice_hours && <p className="conflict">{errors.min_notice_hours}</p>}
+          <div className="form-row">
+            <div className="field">
+              <label>Minimum notice (hours)</label>
+              <input className="input" type="number" min="0" value={form.min_notice_hours} onChange={e => set('min_notice_hours', Number(e.target.value))} />
+            </div>
           </div>
 
-          {/* Description */}
           <div className="field">
             <label>Description</label>
-            <textarea
-              className="input"
-              name="description"
-              placeholder="e.g., Modern conference room with floor-to-ceiling windows"
-              value={formData.description}
-              onChange={handleChange}
-              rows="3"
-            />
+            <textarea className="input" rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="What makes this space useful — layout, equipment, access notes…" />
           </div>
 
-          {/* Form Errors */}
-          {Object.keys(errors).length > 0 && !Object.values(errors).every(e => !e) && (
-            <div className="conflict">
-              Please fix the errors above before submitting.
-            </div>
+          {errors.detail && (
+            <div className="conflict"><Icon.X strokeWidth={2} /><span>{firstError(errors.detail)}</span></div>
           )}
-
-          {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="btn btn-outline" onClick={onCancel} disabled={loading}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? (isEdit ? 'Updating...' : 'Creating...') : isEdit ? 'Update Venue' : 'Create Venue'}
-            </button>
-          </div>
         </form>
+
+        <div className="venue-form-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add venue'}
+          </button>
+        </div>
       </div>
     </div>
   );

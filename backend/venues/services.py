@@ -2,10 +2,9 @@
 Venue business logic and matching.
 """
 
-from django.db.models import Q
+from django.core.exceptions import ValidationError
 
 from bookings.services import check_booking_conflict
-from bookings.models import BookingStatus, Booking
 from .models import Venue
 
 
@@ -29,7 +28,7 @@ def get_available_venues(date, start_time, end_time):
     for venue in all_active:
         try:
             check_booking_conflict(venue, date, start_time, end_time)
-        except Exception:
+        except ValidationError:
             unavailable_ids.add(venue.id)
 
     return Venue.objects.filter(is_active=True).exclude(id__in=unavailable_ids)

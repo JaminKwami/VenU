@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from users.serializers import UserSerializer
 from venues.serializers import VenueSerializer
-from .models import Booking
+from .models import Booking, WaitlistEntry
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -21,12 +21,12 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'venue', 'date', 'start_time', 'end_time',
             'status', 'purpose', 'department', 'notes', 'attendee_count',
-            'rejection_reason', 'decided_by', 'decided_at',
+            'rejection_reason', 'series_id', 'decided_by', 'decided_at',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'status', 'rejection_reason', 'decided_by', 'decided_at',
-            'created_at', 'updated_at',
+            'id', 'status', 'rejection_reason', 'series_id', 'decided_by',
+            'decided_at', 'created_at', 'updated_at',
         ]
 
 
@@ -56,3 +56,19 @@ class BookingStatusSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ['id', 'status', 'rejection_reason', 'decided_at']
         read_only_fields = ['id', 'status', 'rejection_reason', 'decided_at']
+
+
+class WaitlistEntrySerializer(serializers.ModelSerializer):
+    """Waitlist entries — venue is a FK int on write, nested data on read."""
+
+    venue_detail = VenueSerializer(source='venue', read_only=True)
+
+    class Meta:
+        model = WaitlistEntry
+        fields = ['id', 'venue', 'venue_detail', 'date', 'start_time', 'end_time', 'notified', 'created_at']
+        read_only_fields = ['id', 'notified', 'created_at']
+
+    def validate(self, data):
+        if data['end_time'] <= data['start_time']:
+            raise serializers.ValidationError({'end_time': 'End time must be after start time.'})
+        return data

@@ -45,6 +45,8 @@ class Booking(models.Model):
         help_text='Expected number of attendees (checked against venue capacity).',
     )
     rejection_reason = models.CharField(max_length=500, blank=True, default='')
+    # Recurring bookings created together share a series_id.
+    series_id = models.UUIDField(null=True, blank=True, db_index=True)
     # Audit trail: which admin decided, and when.
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -73,3 +75,39 @@ class Booking(models.Model):
             f'{self.venue.name} | {self.date} '
             f'{self.start_time}–{self.end_time} | {self.status}'
         )
+
+
+class WaitlistEntry(models.Model):
+    """
+    A user waiting for a venue slot that is currently taken.
+    When the blocking booking is cancelled or rejected, everyone on the
+    waitlist for an overlapping slot is notified by email.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='waitlist_entries',
+    )
+    venue = models.ForeignKey(
+        Venue,
+        on_delete=models.CASCADE,
+        related_name='waitlist_entries',
+    )
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    notified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'venue', 'date', 'start_time', 'end_time'],
+                name='waitlist_unique_slot_per_user',
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.user.email} waiting for {self.venue.name} on {self.date}'

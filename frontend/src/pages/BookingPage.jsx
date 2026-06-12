@@ -41,6 +41,10 @@ export default function BookingPage() {
   const [created, setCreated] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [loadingAlternatives, setLoadingAlternatives] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);
+  const [repeatOn, setRepeatOn] = useState(false);
+  const [repeatFreq, setRepeatFreq] = useState('weekly');
+  const [repeatUntil, setRepeatUntil] = useState('');
   const revealRef = useReveal([venues.length > 0]);
 
   useEffect(() => {
@@ -82,6 +86,8 @@ export default function BookingPage() {
       .finally(() => setLoadingAlternatives(false));
   }, [clash, venue, hour, duration, date, attendees]);
 
+  useEffect(() => { setWaitlisted(false); }, [venueId, date, hour, duration]);
+
   const venue = venues.find(v => v.id === Number(venueId));
   const clash = hour != null && overlaps(taken, hour, duration);
   const nearestFree = useMemo(() => {
@@ -94,7 +100,7 @@ export default function BookingPage() {
   const canContinue =
     step === 1 ? !!venue :
     step === 2 ? hour != null && !clash :
-    step === 3 ? agree && !overCap && !submitting :
+    step === 3 ? agree && !overCap && !submitting && (!repeatOn || !!repeatUntil) :
     false;
 
   async function next() {
@@ -112,6 +118,7 @@ export default function BookingPage() {
         department,
         notes,
         attendee_count: attendees ? Number(attendees) : null,
+        ...(repeatOn && repeatUntil ? { repeat: { frequency: repeatFreq, until: repeatUntil } } : {}),
       });
       setCreated(res.data);
       setStep(4);
@@ -125,13 +132,27 @@ export default function BookingPage() {
 
   function reset() {
     setStep(1); setHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
+    setRepeatOn(false); setRepeatUntil(''); setWaitlisted(false);
   }
 
   function selectAlternativeVenue(altVenue) {
+    setVenues(prev => prev.some(v => v.id === altVenue.id) ? prev : [...prev, altVenue]);
     setVenueId(altVenue.id);
-    setStep(1);
     setAlternatives([]);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function joinWaitlist() {
+    try {
+      await api.post('/bookings/waitlist/', {
+        venue: venue.id,
+        date,
+        start_time: pad(hour),
+        end_time: pad(hour + duration),
+      });
+      setWaitlisted(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Could not join the waitlist.');
+    }
   }
 
   return (
@@ -214,26 +235,18 @@ export default function BookingPage() {
                   {clash && (
                     <div className="alternatives">
                       {loadingAlternatives ? (
-                        <div className="skeleton" style={{ height: '100px' }} />
+                        <div className="skeleton" style={{ height: 72 }} />
                       ) : alternatives.length > 0 ? (
                         <>
-                          <p className="sub">✨ Available alternatives:</p>
+                          <div className="alt-head">Similar spaces free at this time</div>
                           <div className="alt-grid">
                             {alternatives.map(alt => (
-                              <button
-                                key={alt.id}
-                                className="alt-card"
-                                onClick={() => selectAlternativeVenue(alt)}
-                              >
+                              <button key={alt.id} className="alt-card" onClick={() => selectAlternativeVenue(alt)}>
                                 <div className="alt-name">{alt.name}</div>
-                                <div className="alt-specs">
-                                  {alt.capacity} capacity • {alt.similarity_score.toFixed(0)}% match
-                                </div>
+                                <div className="alt-specs">{alt.building || alt.location} · {alt.capacity} cap</div>
                                 {alt.amenities?.length > 0 && (
                                   <div className="alt-amenities">
-                                    {alt.amenities.slice(0, 2).map(a => (
-                                      <span key={a} className="amenity-tag">{a}</span>
-                                    ))}
+                                    {alt.amenities.slice(0, 3).map(a => <span key={a}>{a}</span>)}
                                   </div>
                                 )}
                               </button>
@@ -241,7 +254,18 @@ export default function BookingPage() {
                           </div>
                         </>
                       ) : (
-                        <p className="conflict-info">No alternatives available at this time.</p>
+                        <div className="alt-empty">
+                          <span>
+                            {waitlisted
+                              ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
+                              : 'No similar space is free at this time. Join the waitlist and we’ll email you if the slot opens.'}
+                          </span>
+                          {!waitlisted && (
+                            <button type="button" className="btn btn-outline btn-sm" onClick={joinWaitlist}>
+                              Join waitlist
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -274,6 +298,30 @@ export default function BookingPage() {
                   <label>Notes for facilities (optional)</label>
                   <textarea className="input" rows={3} placeholder="Equipment, layout or access requests…" value={notes} onChange={e => setNotes(e.target.value)} />
                 </div>
+                <div className="field" style={{ gap: '.7rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit', fontSize: '.9rem', fontWeight: 500, color: 'var(--ink-65)' }}>
+                    <input type="checkbox" checked={repeatOn} onChange={e => setRepeatOn(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                    Repeat this booking
+                  </label>
+                  {repeatOn && (
+                    <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+                      <div className="field" style={{ flex: 1, minWidth: 150 }}>
+                        <label>Frequency</label>
+                        <select className="select" value={repeatFreq} onChange={e => setRepeatFreq(e.target.value)}>
+                          <option value="weekly">Every week</option>
+                          <option value="biweekly">Every two weeks</option>
+                        </select>
+                      </div>
+                      <div className="field" style={{ flex: 1, minWidth: 150 }}>
+                        <label>Until</label>
+                        <input className="input" type="date" min={date} value={repeatUntil} onChange={e => setRepeatUntil(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                  {repeatOn && !repeatUntil && (
+                    <span style={{ fontSize: '.8rem', color: 'var(--ink-45)' }}>Pick an end date — clashing dates are skipped automatically.</span>
+                  )}
+                </div>
                 {overCap && (
                   <div className="conflict"><Icon.X strokeWidth={2} /><span>Attendee count exceeds the venue capacity of {venue.capacity}.</span></div>
                 )}
@@ -293,10 +341,16 @@ export default function BookingPage() {
                 <div className="success-ring"><Icon.Check /></div>
                 <h2 style={{ fontSize: '1.6rem' }}>Request submitted!</h2>
                 <p className="muted" style={{ maxWidth: '42ch', margin: '.6rem auto 0' }}>
-                  Your request for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> is in the
-                  approvals queue — the outcome will appear on your dashboard.
-                  Reference <span className="mono" style={{ color: 'var(--accent-ink)' }}>#VENU-{created.id}</span>.
+                  {created.series_count > 1
+                    ? <>Your <b style={{ color: 'var(--ink)' }}>{created.series_count} recurring requests</b> for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> are in the approvals queue.</>
+                    : <>Your request for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> is in the approvals queue — the outcome will appear on your dashboard.</>}
+                  {' '}Reference <span className="mono" style={{ color: 'var(--accent-ink)' }}>#VENU-{created.id}</span>.
                 </p>
+                {created.skipped_dates?.length > 0 && (
+                  <p className="muted" style={{ maxWidth: '46ch', margin: '.8rem auto 0', fontSize: '.85rem' }}>
+                    {created.skipped_dates.length} {created.skipped_dates.length === 1 ? 'date was' : 'dates were'} skipped because the venue is already booked: {created.skipped_dates.join(', ')}.
+                  </p>
+                )}
                 <div className="row" style={{ gap: '.7rem', justifyContent: 'center', marginTop: '1.6rem' }}>
                   <Link className="btn btn-primary" to="/dashboard">Go to dashboard</Link>
                   <button className="btn btn-ghost" onClick={reset}>Book another</button>
