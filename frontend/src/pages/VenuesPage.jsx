@@ -112,7 +112,7 @@ export default function VenuesPage() {
               <div className="vis">
                 <div style={{ position: 'absolute', inset: 0, background: venueGradient(v.id) }} />
                 <div className="iso" />
-                <span className="vstatus badge badge-approved"><span className="dot" />Bookable</span>
+                <span className={`vstatus badge ${v.is_active ? 'badge-approved' : 'badge-cancelled'}`}><span className="dot" />{v.is_active ? 'Bookable' : 'Unavailable'}</span>
                 <span className="vcap">CAP {v.capacity}</span>
               </div>
               <div className="body">
