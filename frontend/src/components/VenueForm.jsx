@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { Icon } from './icons';
 import '../styles/venue-form.css';
@@ -18,6 +18,7 @@ const firstError = v => (Array.isArray(v) ? v[0] : v);
 
 export default function VenueForm({ venue = null, onSuccess, onCancel }) {
   const isEdit = !!venue;
+  const containerRef = useRef(null);
   const [form, setForm] = useState({
     name: venue?.name || '',
     location: venue?.location || '',
@@ -30,6 +31,28 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    document.addEventListener('keydown', onKey);
+    // Focus first focusable element inside the modal
+    const first = containerRef.current?.querySelector('input, select, textarea, button');
+    first?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  function trapFocus(e) {
+    if (e.key !== 'Tab') return;
+    const el = containerRef.current;
+    if (!el) return;
+    const focusable = [...el.querySelectorAll('input, select, textarea, button, [href]')].filter(n => !n.disabled);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  }
 
   function set(name, value) {
     setForm(f => ({ ...f, [name]: value }));
@@ -69,7 +92,7 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
   return (
     <div className="venue-form-modal" role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit venue' : 'Create venue'}>
       <div className="venue-form-overlay" onClick={onCancel} />
-      <div className="venue-form-container">
+      <div className="venue-form-container" ref={containerRef} onKeyDown={trapFocus}>
         <div className="venue-form-header">
           <h2>{isEdit ? `Edit ${venue.name}` : 'Add a venue'}</h2>
           <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel} aria-label="Close">
