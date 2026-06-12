@@ -312,7 +312,24 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.2rem; position: sticky; top: 0; z-index: 35; background: color-mix(in srgb, var(--canvas) 85%, transparent); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
   .scrim.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 39; }
   .topbar { display: none; }
-  .page { padding: 1.4rem; }
+  .page { padding: 1rem; }
+}
+
+/* ── Phone (≤480px) ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* shell */
+  .page { padding: .85rem; }
+
+  /* buttons — full-width stacking */
+  .tb-actions .btn { font-size: .8rem; padding: .45rem .75rem; }
+
+  /* cards */
+  .card { border-radius: var(--r-md); }
+
+  /* table overflow → horizontal scroll */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 540px; }
+  .hide-xs { display: none !important; }
 }
 
 /* ─── Appearance popover (theme/accent control) ──────────────── */

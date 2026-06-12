@@ -27,3 +27,9 @@
 .reveal-up { animation: ru .7s var(--ease) both; }
 @keyframes ru { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 860px) { .auth { grid-template-columns: 1fr; } .auth-aside { display: none; } }
+@media (max-width: 480px) {
+  .auth-main { padding: 1.2rem; align-items: flex-start; padding-top: 2.5rem; }
+  .auth-form { max-width: 100%; }
+  .auth-form h1 { font-size: 1.7rem; }
+  .auth-form .topnav { margin-bottom: 1.8rem; }
+}

@@ -319,6 +319,19 @@
   letter-spacing: .06em;
 }
 
+/* Small phone pass */
+@media (max-width: 480px) {
+  .kiosk-wrap { padding: .5rem; }
+  .kiosk-card { padding: 1.5rem 1.2rem; }
+  .kiosk-h1 { font-size: 1.35rem; }
+  .kiosk-input { font-size: 1rem; padding: .85rem .9rem; letter-spacing: .08em; }
+  .kiosk-time { font-size: 1.8rem; }
+  .kiosk-venue { font-size: 1.3rem; }
+  .kiosk-btn-checkin { font-size: 1rem; padding: 1rem 1.2rem; }
+  .kiosk-detail-grid { grid-template-columns: 1fr; gap: .6rem; }
+  .kiosk-success-icon, .kiosk-error-icon { width: 64px; height: 64px; font-size: 2rem; }
+}
+
 /* Tablet landscape optimisations */
 @media (min-width: 768px) {
   .kiosk-card { padding: 3rem 3.5rem 2.5rem; }

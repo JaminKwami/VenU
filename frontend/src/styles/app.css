@@ -204,6 +204,95 @@
 .toggle.on::after { transform: translateX(17px); }
 @media (max-width: 980px){ .mg-stats{grid-template-columns:repeat(2,1fr)} .hide-sm{display:none} }
 
+/* ════════════════════════════════════════
+   PHONE BREAKPOINTS  ≤ 640px  +  ≤ 400px
+   ════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+
+  /* ── Dashboard ── */
+  .stats-row { grid-template-columns: repeat(2,1fr); gap: .75rem; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .booking-item { gap: .7rem; padding: .85rem 1rem; }
+  .bi-date { width: 46px; height: 46px; }
+  .bi-date .d { font-size: 1.15rem; }
+  .bi-main .t { font-size: .9rem; }
+  .bi-main .s { font-size: .78rem; gap: .35rem; }
+  .week-strip { gap: .3rem; }
+  .wd { padding: .5rem .2rem; }
+  .wd .wn { font-size: .95rem; }
+  .card-head { flex-wrap: wrap; gap: .6rem; padding: 1rem; }
+  .card-head .btn { font-size: .78rem; padding: .4rem .7rem; }
+
+  /* ── Venues browse ── */
+  .vgrid { grid-template-columns: 1fr; gap: 1rem; }
+  .vcard .vis { height: 130px; }
+  .filter-bar { gap: .4rem; }
+  .filter-bar .select { font-size: .82rem; padding: .45rem 2rem .45rem .7rem; }
+  .search-box { min-width: 0; }
+
+  /* ── Venue detail ── */
+  .v-hero { height: 200px; padding: 1rem; }
+  .v-hero .hname h1 { font-size: 1.5rem; }
+  .v-hero .htop { top: 1rem; left: 1rem; right: 1rem; }
+  .detail-grid { grid-template-columns: 1fr; gap: 1rem; }
+  .spec-row { grid-template-columns: repeat(2,1fr); gap: .7rem; }
+  .book-panel { position: static; padding: 1.1rem; }
+  .pill-times { grid-template-columns: repeat(3,1fr); gap: .4rem; }
+  .avail-row .dl { width: 36px; font-size: .6rem; }
+  .slot { height: 22px; }
+
+  /* ── Booking wizard ── */
+  .stepper { gap: .3rem; margin-bottom: 1.4rem; }
+  .stp .lb { font-size: .75rem; }
+  .stp-line { width: 20px; }
+  .book-grid { grid-template-columns: 1fr; }
+  .sum-card { position: static; padding: 1.1rem; }
+  .venue-pick { grid-template-columns: 1fr; gap: .6rem; }
+  .time-grid { grid-template-columns: repeat(4,1fr); gap: .35rem; }
+  .time-grid button { padding: .55rem .3rem; font-size: .76rem; }
+  .nav-row { gap: .6rem; }
+  .nav-row .btn { flex: 1; justify-content: center; }
+
+  /* ── Approvals ── */
+  .ap-stats { grid-template-columns: repeat(2,1fr); gap: .75rem; }
+  .ap-grid { grid-template-columns: 1fr; }
+  .detail-card { position: static; padding: 1.1rem; }
+  .req { gap: .7rem; padding: .9rem 1rem; }
+  .req .rmeta { font-size: .8rem; }
+  .filters { gap: .35rem; }
+  .filters .btn { font-size: .8rem; padding: .4rem .7rem; }
+
+  /* ── Manage venues ── */
+  .mg-stats { grid-template-columns: repeat(2,1fr); gap: .75rem; }
+  .toolbar { gap: .4rem; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 600px; }
+
+  /* ── Admin settings ── */
+  .settings-inline-form { flex-direction: column; }
+  .settings-inline-form .field { width: 100%; }
+
+  /* ── No-show panel card-head on small screens ── */
+  .card-head { flex-direction: column; align-items: flex-start; }
+  .card-head > div:last-child { align-self: stretch; flex-direction: column; }
+
+  /* ── Stat cards ── */
+  .stat-card { padding: 1rem !important; }
+  .stat-val { font-size: 2rem !important; }
+}
+
+@media (max-width: 400px) {
+  /* Ultra-narrow (SE, Galaxy A-series at small text size) */
+  .stats-row { grid-template-columns: 1fr; }
+  .ap-stats { grid-template-columns: 1fr; }
+  .spec-row { grid-template-columns: 1fr; }
+  .time-grid { grid-template-columns: repeat(3,1fr); }
+  .stepper { overflow-x: auto; flex-wrap: nowrap; padding-bottom: .3rem; }
+  .stp .lb { display: none; }   /* numbers only on tiny screens */
+  .bi-date { display: none; }   /* hide date tile on smallest screens */
+}
+
 /* ── Admin settings ── */
 .settings-inline-form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
 .settings-inline-form .field { margin: 0; }
