@@ -202,8 +202,8 @@ export default function BookingPage() {
               <h2 style={{ fontSize: '1.3rem', marginBottom: '.4rem' }}>Pick a date &amp; time</h2>
               <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>We'll flag any clashes before you submit.</p>
               <div className="field" style={{ marginBottom: '1.2rem', maxWidth: 260 }}>
-                <label>Date</label>
-                <input className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); }} />
+                <label htmlFor="book-date">Date</label>
+                <input id="book-date" className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); }} />
               </div>
               <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
               <div className="time-grid">
@@ -217,8 +217,8 @@ export default function BookingPage() {
                 })}
               </div>
               <div className="field" style={{ marginTop: '1.2rem', maxWidth: 260 }}>
-                <label>Duration</label>
-                <select className="select" value={duration} onChange={e => setDuration(Number(e.target.value))}>
+                <label htmlFor="book-duration">Duration</label>
+                <select id="book-duration" className="select" value={duration} onChange={e => setDuration(Number(e.target.value))}>
                   {DURATIONS.map(d => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
                 </select>
               </div>
@@ -282,22 +282,22 @@ export default function BookingPage() {
               <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>Help the approver understand your request.</p>
               <div className="stack" style={{ gap: '1rem' }}>
                 <div className="field">
-                  <label>Purpose / event name</label>
-                  <input className="input" placeholder="e.g. Robotics Showcase 2026" value={purpose} onChange={e => setPurpose(e.target.value)} />
+                  <label htmlFor="book-purpose">Purpose / event name</label>
+                  <input id="book-purpose" className="input" placeholder="e.g. Robotics Showcase 2026" value={purpose} onChange={e => setPurpose(e.target.value)} />
                 </div>
                 <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
                   <div className="field" style={{ flex: 1, minWidth: 160 }}>
-                    <label>Expected attendees</label>
-                    <input className="input" type="number" min="1" max={venue?.capacity} placeholder={venue ? `Up to ${venue.capacity}` : ''} value={attendees} onChange={e => setAttendees(e.target.value)} />
+                    <label htmlFor="book-attendees">Expected attendees</label>
+                    <input id="book-attendees" className="input" type="number" min="1" max={venue?.capacity} placeholder={venue ? `Up to ${venue.capacity}` : ''} value={attendees} onChange={e => setAttendees(e.target.value)} />
                   </div>
                   <div className="field" style={{ flex: 1, minWidth: 160 }}>
-                    <label>Department</label>
-                    <input className="input" placeholder="e.g. Engineering" value={department} onChange={e => setDepartment(e.target.value)} />
+                    <label htmlFor="book-dept">Department</label>
+                    <input id="book-dept" className="input" placeholder="e.g. Engineering" value={department} onChange={e => setDepartment(e.target.value)} />
                   </div>
                 </div>
                 <div className="field">
-                  <label>Notes for facilities (optional)</label>
-                  <textarea className="input" rows={3} placeholder="Equipment, layout or access requests…" value={notes} onChange={e => setNotes(e.target.value)} />
+                  <label htmlFor="book-notes">Notes for facilities (optional)</label>
+                  <textarea id="book-notes" className="input" rows={3} placeholder="Equipment, layout or access requests…" value={notes} onChange={e => setNotes(e.target.value)} />
                 </div>
                 <div className="field" style={{ gap: '.7rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit', fontSize: '.9rem', fontWeight: 500, color: 'var(--ink-65)' }}>
@@ -307,15 +307,15 @@ export default function BookingPage() {
                   {repeatOn && (
                     <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
                       <div className="field" style={{ flex: 1, minWidth: 150 }}>
-                        <label>Frequency</label>
-                        <select className="select" value={repeatFreq} onChange={e => setRepeatFreq(e.target.value)}>
+                        <label htmlFor="book-freq">Frequency</label>
+                        <select id="book-freq" className="select" value={repeatFreq} onChange={e => setRepeatFreq(e.target.value)}>
                           <option value="weekly">Every week</option>
                           <option value="biweekly">Every two weeks</option>
                         </select>
                       </div>
                       <div className="field" style={{ flex: 1, minWidth: 150 }}>
-                        <label>Until</label>
-                        <input className="input" type="date" min={date} value={repeatUntil} onChange={e => setRepeatUntil(e.target.value)} />
+                        <label htmlFor="book-until">Until</label>
+                        <input id="book-until" className="input" type="date" min={date} value={repeatUntil} onChange={e => setRepeatUntil(e.target.value)} />
                       </div>
                     </div>
                   )}

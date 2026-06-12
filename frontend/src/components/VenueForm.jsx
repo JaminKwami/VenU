@@ -79,32 +79,32 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
 
         <form className="venue-form" onSubmit={handleSubmit}>
           <div className="field">
-            <label>Venue name</label>
-            <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Turing Lecture Theatre" autoFocus />
+            <label htmlFor="vf-name">Venue name</label>
+            <input id="vf-name" className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Turing Lecture Theatre" autoFocus />
             {errors.name && <span className="field-error">{firstError(errors.name)}</span>}
           </div>
 
           <div className="form-row">
             <div className="field">
-              <label>Building</label>
-              <input className="input" value={form.building} onChange={e => set('building', e.target.value)} placeholder="e.g. Engineering Block" />
+              <label htmlFor="vf-building">Building</label>
+              <input id="vf-building" className="input" value={form.building} onChange={e => set('building', e.target.value)} placeholder="e.g. Engineering Block" />
             </div>
             <div className="field">
-              <label>Location</label>
-              <input className="input" value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Level 2, Room 204" />
+              <label htmlFor="vf-location">Location</label>
+              <input id="vf-location" className="input" value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Level 2, Room 204" />
             </div>
           </div>
 
           <div className="form-row">
             <div className="field">
-              <label>Type</label>
-              <select className="select" value={form.venue_type} onChange={e => set('venue_type', e.target.value)}>
+              <label htmlFor="vf-type">Type</label>
+              <select id="vf-type" className="select" value={form.venue_type} onChange={e => set('venue_type', e.target.value)}>
                 {VENUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div className="field">
-              <label>Capacity</label>
-              <input className="input" type="number" min="1" value={form.capacity} onChange={e => set('capacity', Number(e.target.value))} />
+              <label htmlFor="vf-capacity">Capacity</label>
+              <input id="vf-capacity" className="input" type="number" min="1" value={form.capacity} onChange={e => set('capacity', Number(e.target.value))} />
               {errors.capacity && <span className="field-error">{firstError(errors.capacity)}</span>}
             </div>
           </div>
@@ -122,14 +122,14 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
 
           <div className="form-row">
             <div className="field">
-              <label>Minimum notice (hours)</label>
-              <input className="input" type="number" min="0" value={form.min_notice_hours} onChange={e => set('min_notice_hours', Number(e.target.value))} />
+              <label htmlFor="vf-notice">Minimum notice (hours)</label>
+              <input id="vf-notice" className="input" type="number" min="0" value={form.min_notice_hours} onChange={e => set('min_notice_hours', Number(e.target.value))} />
             </div>
           </div>
 
           <div className="field">
-            <label>Description</label>
-            <textarea className="input" rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="What makes this space useful — layout, equipment, access notes…" />
+            <label htmlFor="vf-desc">Description</label>
+            <textarea id="vf-desc" className="input" rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="What makes this space useful — layout, equipment, access notes…" />
           </div>
 
           {errors.detail && (

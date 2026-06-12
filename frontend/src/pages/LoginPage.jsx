@@ -64,8 +64,9 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label>University email</label>
+              <label htmlFor="login-email">University email</label>
               <input
+                id="login-email"
                 className="input"
                 type="email"
                 placeholder="you@institution.edu"
@@ -76,8 +77,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="field">
-              <label>Password</label>
+              <label htmlFor="login-password">Password</label>
               <input
+                id="login-password"
                 className="input"
                 type="password"
                 placeholder="••••••••••"
