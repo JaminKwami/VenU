@@ -5,6 +5,7 @@ import { useReveal } from '../hooks/useReveal';
 import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
 import { venueGradient } from '../utils/venueUi';
+import VenueForm from '../components/VenueForm';
 
 export default function ManageVenuesPage() {
   usePageTitle('Manage Venues');
@@ -15,6 +16,8 @@ export default function ManageVenuesPage() {
   const [status, setStatus] = useState('All statuses');
   const [toggling, setToggling] = useState(null);
   const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingVenue, setEditingVenue] = useState(null);
   const revealRef = useReveal([venues != null, search, building, status]);
 
   useEffect(() => {
@@ -52,6 +55,32 @@ export default function ManageVenuesPage() {
     }
   }
 
+  function handleFormSuccess(newVenue) {
+    if (editingVenue) {
+      setVenues(prev => prev.map(v => v.id === newVenue.id ? newVenue : v));
+    } else {
+      setVenues(prev => [...prev, newVenue]);
+    }
+    setShowForm(false);
+    setEditingVenue(null);
+    setError('');
+  }
+
+  function handleFormCancel() {
+    setShowForm(false);
+    setEditingVenue(null);
+  }
+
+  function openCreateForm() {
+    setEditingVenue(null);
+    setShowForm(true);
+  }
+
+  function openEditForm(venue) {
+    setEditingVenue(venue);
+    setShowForm(true);
+  }
+
   const loading = venues == null;
   const total = venues?.length || 0;
   const bookable = (venues || []).filter(v => v.is_active).length;
@@ -86,6 +115,9 @@ export default function ManageVenuesPage() {
           <option>Bookable</option>
           <option>Maintenance</option>
         </select>
+        <button className="btn btn-primary btn-sm" onClick={openCreateForm}>
+          <Icon.Plus width={14} height={14} /> Create venue
+        </button>
       </div>
 
       {error && <div className="conflict reveal in" style={{ marginBottom: '1rem' }}><Icon.X strokeWidth={2} /><span>{error}</span></div>}
@@ -144,7 +176,7 @@ export default function ManageVenuesPage() {
                   </td>
                   <td>
                     <div className="row-act">
-                      <button title="Edit"><Icon.Edit width={15} height={15} /></button>
+                      <button title="Edit" onClick={() => openEditForm(v)}><Icon.Edit width={15} height={15} /></button>
                       <button title="View"><Icon.Eye width={15} height={15} /></button>
                     </div>
                   </td>
@@ -153,6 +185,14 @@ export default function ManageVenuesPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showForm && (
+        <VenueForm
+          venue={editingVenue}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormCancel}
+        />
       )}
     </div>
   );
