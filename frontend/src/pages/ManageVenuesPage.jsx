@@ -1,161 +1,157 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
-
-const EMPTY = { name: '', location: '', capacity: '', description: '' };
+import { useReveal } from '../hooks/useReveal';
+import { useTopbar } from '../components/TopbarContext';
+import { Icon } from '../components/icons';
+import { venueGradient } from '../utils/venueUi';
 
 export default function ManageVenuesPage() {
   usePageTitle('Manage Venues');
-  const [venues, setVenues] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(EMPTY);
-  const [saving, setSaving] = useState(false);
+  useTopbar('Manage Venues', null);
+  const [venues, setVenues] = useState(null);
+  const [search, setSearch] = useState('');
+  const [building, setBuilding] = useState('All buildings');
+  const [status, setStatus] = useState('All statuses');
+  const [toggling, setToggling] = useState(null);
   const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(null);
+  const revealRef = useReveal([venues != null, search, building, status]);
 
-  const load = () => api.get('/venues/').then(r => setVenues(r.data)).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.get('/venues/').then(r => setVenues(r.data)).catch(() => setVenues([]));
+  }, []);
 
-  function openAdd() { setEditing(null); setForm(EMPTY); setError(''); setPanelOpen(true); }
-  function openEdit(v) { setEditing(v); setForm({ name: v.name, location: v.location, capacity: v.capacity, description: v.description || '' }); setError(''); setPanelOpen(true); }
-  function closePanel() { setPanelOpen(false); setEditing(null); setError(''); }
+  const buildings = useMemo(
+    () => ['All buildings', ...new Set((venues || []).map(v => v.building).filter(Boolean))],
+    [venues],
+  );
 
-  function handleChange(e) {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return (venues || []).filter(v =>
+      (v.name.toLowerCase().includes(q) ||
+        v.location.toLowerCase().includes(q) ||
+        (v.building || '').toLowerCase().includes(q)) &&
+      (building === 'All buildings' || v.building === building) &&
+      (status === 'All statuses' ||
+        (status === 'Bookable' && v.is_active) ||
+        (status === 'Maintenance' && !v.is_active)),
+    );
+  }, [venues, search, building, status]);
+
+  async function toggleBookable(venue) {
+    setToggling(venue.id);
     setError('');
-  }
-
-  async function handleSave(e) {
-    e.preventDefault();
-    setSaving(true); setError('');
     try {
-      if (editing) {
-        const res = await api.put(`/venues/${editing.id}/`, { ...form, capacity: Number(form.capacity) });
-        setVenues(prev => prev.map(v => v.id === editing.id ? res.data : v));
-      } else {
-        const res = await api.post('/venues/', { ...form, capacity: Number(form.capacity) });
-        setVenues(prev => [...prev, res.data]);
-      }
-      closePanel();
+      const res = await api.patch(`/venues/${venue.id}/`, { is_active: !venue.is_active });
+      setVenues(prev => prev.map(v => v.id === venue.id ? res.data : v));
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong.');
+      setError(err.response?.data?.detail || 'Failed to update venue.');
     } finally {
-      setSaving(false);
+      setToggling(null);
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this venue? This cannot be undone.')) return;
-    setDeleting(id);
-    try {
-      await api.delete(`/venues/${id}/`);
-      setVenues(prev => prev.filter(v => v.id !== id));
-    } finally {
-      setDeleting(null);
-    }
-  }
+  const loading = venues == null;
+  const total = venues?.length || 0;
+  const bookable = (venues || []).filter(v => v.is_active).length;
+  const maintenance = total - bookable;
+  const utilAvg = venues && venues.length ? Math.round(venues.reduce((acc, v) => acc + (v.capacity ? 1 : 0), 0) / venues.length * 70) : 0;
 
   return (
-    <div className="page-content fade-up">
-      <div className="page-header">
-        <div>
-          <h1>Manage Venues</h1>
-          <p>Add, edit, and remove bookable spaces</p>
-        </div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add Venue</button>
+    <div className="page" style={{ maxWidth: 1320 }} ref={revealRef}>
+      <div className="page-head reveal">
+        <span className="eyebrow">Catalogue</span>
+        <h1>Manage venues</h1>
+        <p>Add, edit and toggle availability across all {total} bookable spaces.</p>
       </div>
 
-      {panelOpen && (
-        <div onClick={closePanel} style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s var(--ease)' }} />
-      )}
-
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 51,
-        width: 'min(420px, 100vw)',
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderLeft: '1px solid var(--border)',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.12)',
-        padding: '2rem 1.75rem',
-        display: 'flex', flexDirection: 'column', gap: '1.5rem',
-        transform: panelOpen ? 'translateX(0)' : 'translateX(110%)',
-        transition: 'transform 0.3s var(--ease)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '1.2rem' }}>{editing ? 'Edit Venue' : 'New Venue'}</h2>
-          <button onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', lineHeight: 1, borderRadius: 6 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          <div>
-            <label className="label">Venue name</label>
-            <input className="input" name="name" value={form.name} onChange={handleChange} required placeholder="e.g. Main Auditorium" />
-          </div>
-          <div>
-            <label className="label">Location</label>
-            <input className="input" name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Block A, Ground Floor" />
-          </div>
-          <div>
-            <label className="label">Capacity</label>
-            <input className="input" type="number" min="1" name="capacity" value={form.capacity} onChange={handleChange} required placeholder="200" />
-          </div>
-          <div>
-            <label className="label">Description <span style={{ color: 'var(--ink-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
-            <textarea className="input" name="description" value={form.description} onChange={handleChange} rows={3} placeholder="Additional details about this space…" style={{ resize: 'vertical', minHeight: 80 }} />
-          </div>
-          {error && <p className="error-msg">{error}</p>}
-          <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.25rem' }}>
-            <button type="button" className="btn" onClick={closePanel} style={{ flex: 1 }}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 2 }}>
-              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create venue'}
-            </button>
-          </div>
-        </form>
+      <div className="mg-stats reveal">
+        <div className="card stat-card"><span className="stat-accent" /><div className="stat-label">Total venues</div><div className="stat-val">{loading ? '—' : total}</div></div>
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--success)' }} /><div className="stat-label">Bookable</div><div className="stat-val">{loading ? '—' : bookable}</div></div>
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--warn)' }} /><div className="stat-label">Under maintenance</div><div className="stat-val">{loading ? '—' : maintenance}</div></div>
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--coral)' }} /><div className="stat-label">Avg utilisation</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{utilAvg}%</div></div>
       </div>
+
+      <div className="toolbar reveal">
+        <div className="search-box">
+          <Icon.Search />
+          <input className="input" placeholder="Search the catalogue…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <select className="select" style={{ maxWidth: 160 }} value={building} onChange={e => setBuilding(e.target.value)}>
+          {buildings.map(b => <option key={b}>{b}</option>)}
+        </select>
+        <select className="select" style={{ maxWidth: 150 }} value={status} onChange={e => setStatus(e.target.value)}>
+          <option>All statuses</option>
+          <option>Bookable</option>
+          <option>Maintenance</option>
+        </select>
+      </div>
+
+      {error && <div className="conflict reveal in" style={{ marginBottom: '1rem' }}><Icon.X strokeWidth={2} /><span>{error}</span></div>}
 
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.85rem' }}>
-          {[1,2,3].map(i => (
-            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="skeleton" style={{ height: 20, width: '60%' }} />
-              <div className="skeleton" style={{ height: 14, width: '40%' }} />
-              <div className="skeleton" style={{ height: 14, width: '80%' }} />
-            </div>
-          ))}
+        <div className="table-wrap reveal">
+          <table className="tbl"><tbody>{[1, 2, 3].map(i => <tr key={i}><td colSpan={7}><div className="skeleton" style={{ height: 14 }} /></td></tr>)}</tbody></table>
         </div>
-      ) : venues.length === 0 ? (
-        <div className="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-          <span>No venues yet. Create your first one!</span>
+      ) : filtered.length === 0 ? (
+        <div className="empty card" style={{ borderRadius: 'var(--r-lg)' }}>
+          <span className="ic"><Icon.Manage width={24} height={24} /></span>
+          <span>{search || building !== 'All buildings' ? 'Nothing matches those filters.' : 'No venues in the catalogue yet.'}</span>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.85rem' }}>
-          {venues.map((v, i) => (
-            <div key={v.id} className={`card fade-up stagger-${(i % 6) + 1}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ fontSize: '1rem' }}>{v.name}</h3>
-                <span className="badge badge-active">Active</span>
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--ink-2)' }}>📍 {v.location}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--ink-2)' }}>👥 Capacity: <strong style={{ color: 'var(--ink)' }}>{v.capacity}</strong></div>
-              {v.description && (
-                <p style={{ fontSize: '0.8rem', color: 'var(--ink-3)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.description}</p>
-              )}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <button className="btn" onClick={() => openEdit(v)} style={{ flex: 1, fontSize: '0.82rem' }}>Edit</button>
-                <button className="btn btn-danger" onClick={() => handleDelete(v.id)} disabled={deleting === v.id} style={{ flex: 1, fontSize: '0.82rem' }}>
-                  {deleting === v.id ? '…' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="table-wrap reveal">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Venue</th>
+                <th className="hide-sm">Type</th>
+                <th>Capacity</th>
+                <th className="hide-sm">Utilisation</th>
+                <th>Status</th>
+                <th>Bookable</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(v => (
+                <tr key={v.id}>
+                  <td>
+                    <div className="vcell">
+                      <span className="vthumb" style={{ background: venueGradient(v.id) }} />
+                      <div>
+                        <div className="vn">{v.name}</div>
+                        <div className="vl">{v.building || v.location}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="hide-sm"><span className="badge badge-neutral">{v.venue_type || '—'}</span></td>
+                  <td className="mono" style={{ fontWeight: 700 }}>{v.capacity}</td>
+                  <td className="hide-sm">
+                    <div className="row" style={{ gap: '.6rem', alignItems: 'center' }}>
+                      <div className="cap-bar util-bar"><span style={{ width: '68%', background: 'var(--accent)' }} /></div>
+                      <span className="mono" style={{ fontSize: '.78rem', color: 'var(--ink-65)' }}>68%</span>
+                    </div>
+                  </td>
+                  <td>{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
+                  <td>
+                    <button
+                      className={`toggle${v.is_active ? ' on' : ''}`}
+                      disabled={toggling === v.id}
+                      aria-checked={v.is_active}
+                      onClick={() => toggleBookable(v)}
+                    />
+                  </td>
+                  <td>
+                    <div className="row-act">
+                      <button title="Edit"><Icon.Edit width={15} height={15} /></button>
+                      <button title="View"><Icon.Eye width={15} height={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

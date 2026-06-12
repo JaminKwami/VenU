@@ -12,7 +12,14 @@ class Venue(models.Model):
 
     name = models.CharField(max_length=200, unique=True)
     location = models.CharField(max_length=255)
+    building = models.CharField(max_length=120, blank=True, default='')
+    venue_type = models.CharField(
+        max_length=40, blank=True, default='',
+        help_text='e.g. Lecture hall, Studio, Lab, Seminar room, Outdoor, Music, Sports',
+    )
     capacity = models.PositiveIntegerField()
+    amenities = models.JSONField(default=list, blank=True)
+    min_notice_hours = models.PositiveIntegerField(default=0)
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

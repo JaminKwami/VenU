@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VenU — Hartman Auditorium</title>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('venu_appearance_v1')||'{}');document.documentElement.setAttribute('data-theme',s.theme||'light');if(s.accent&&s.accent!=='cobalt')document.documentElement.setAttribute('data-accent',s.accent);document.documentElement.setAttribute('data-motion',s.motion||'cinematic');}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/venu.css" />
+<style>
+  .crumb { display: flex; align-items: center; gap: .5rem; font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-45); margin-bottom: 1.2rem; }
+  .crumb a:hover { color: var(--accent-ink); }
+  .v-hero { position: relative; height: 280px; border-radius: var(--r-xl); overflow: hidden; display: flex; align-items: flex-end; padding: 1.6rem; margin-bottom: 1.6rem; }
+  .v-hero .iso { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.14) 1px,transparent 1px); background-size: 30px 30px; }
+  .v-hero .shade { position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,.45)); }
+  .v-hero .htop { position: absolute; top: 1.6rem; left: 1.6rem; right: 1.6rem; display: flex; justify-content: space-between; }
+  .v-hero .hname { position: relative; color: #fff; }
+  .v-hero .hname h1 { font-size: clamp(1.8rem,4vw,2.8rem); }
+  .v-hero .hname .loc { font-family: var(--font-mono); font-size: .76rem; letter-spacing: .06em; opacity: .9; margin-top: .3rem; }
+  .detail-grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.6rem; align-items: start; }
+  .spec-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.6rem; }
+  .spec { padding: 1.1rem; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); }
+  .spec .sl { font-family: var(--font-mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-45); }
+  .spec .sv { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; margin-top: .3rem; }
+  .sec-block { margin-bottom: 1.8rem; }
+  .sec-block h2 { font-size: 1.35rem; margin-bottom: .8rem; }
+  .sec-block p { color: var(--ink-65); line-height: 1.6; }
+  .amen-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: .7rem; }
+  .amen-item { display: flex; align-items: center; gap: .7rem; padding: .8rem 1rem; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); font-size: .9rem; }
+  .amen-item svg { width: 18px; height: 18px; color: var(--accent-ink); flex-shrink: 0; }
+  .avail { display: flex; flex-direction: column; gap: .5rem; }
+  .avail-row { display: flex; align-items: center; gap: 1rem; }
+  .avail-row .dl { font-family: var(--font-mono); font-size: .7rem; width: 46px; color: var(--ink-65); text-transform: uppercase; }
+  .slot-track { display: flex; gap: 4px; flex: 1; }
+  .slot { flex: 1; height: 30px; border-radius: 5px; background: var(--success-soft); border: 1px solid transparent; position: relative; transition: transform .25s var(--spring); }
+  .slot.busy { background: var(--canvas-2); }
+  .slot.mine { background: var(--accent-soft); border-color: var(--accent-line); }
+  .slot:hover { transform: scaleY(1.12); }
+  .legend { display: flex; gap: 1.2rem; margin-top: .8rem; font-size: .76rem; color: var(--ink-65); }
+  .legend span { display: flex; align-items: center; gap: .4rem; }
+  .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .book-panel { position: sticky; top: 90px; padding: 1.5rem; }
+  .book-panel h3 { font-size: 1.2rem; }
+  .pill-times { display: grid; grid-template-columns: repeat(3,1fr); gap: .5rem; margin: .3rem 0; }
+  .pill-times button { padding: .6rem; border-radius: var(--r-sm); border: 1px solid var(--line-2); background: var(--surface); font-size: .82rem; font-weight: 600; font-family: var(--font-mono); transition: all .25s var(--ease); }
+  .pill-times button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pill-times button:disabled { opacity: .4; text-decoration: line-through; pointer-events: none; }
+  .summary-line { display: flex; justify-content: space-between; font-size: .9rem; padding: .4rem 0; }
+  .summary-line.tot { border-top: 1px solid var(--line); margin-top: .4rem; padding-top: .8rem; font-weight: 700; }
+  @media (max-width: 980px){ .detail-grid{grid-template-columns:1fr} .spec-row{grid-template-columns:repeat(2,1fr)} .book-panel{position:static} }
+</style>
+</head>
+<body>
+<main class="main" data-shell="venues" data-title="Venue" data-user="Maya Chen" data-role="Student · Engineering" data-screen-label="Venue detail">
+  <header class="topbar"><div class="tb-title"></div><div class="tb-actions"></div></header>
+
+  <div class="page" style="max-width:1280px">
+    <div class="crumb reveal"><a href="venues.html">Venues</a> <span>/</span> <a href="venues.html">Building A</a> <span>/</span> <span style="color:var(--ink)">Hartman Auditorium</span></div>
+
+    <div class="v-hero reveal" style="background:linear-gradient(135deg,#2a4ddb,#6b3df0)">
+      <div class="iso"></div><div class="shade"></div>
+      <div class="htop"><span class="badge badge-approved" style="background:rgba(255,255,255,.9)"><span class="dot"></span>Open now</span><span class="badge" style="background:rgba(0,0,0,.3);color:#fff;backdrop-filter:blur(4px)">★ 4.9 · 128 bookings</span></div>
+      <div class="hname"><h1>Hartman Auditorium</h1><div class="loc">Building A · Level 1 · Lecture hall</div></div>
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="spec-row reveal">
+          <div class="spec"><div class="sl">Capacity</div><div class="sv">420</div></div>
+          <div class="spec"><div class="sl">Floor area</div><div class="sv">540<span style="font-size:.9rem">m²</span></div></div>
+          <div class="spec"><div class="sl">Setup</div><div class="sv" style="font-size:1.1rem;margin-top:.6rem">Tiered</div></div>
+          <div class="spec"><div class="sl">Min notice</div><div class="sv" style="font-size:1.1rem;margin-top:.6rem">48 hrs</div></div>
+        </div>
+
+        <div class="sec-block reveal">
+          <h2>About this space</h2>
+          <p>Hartman Auditorium is the flagship lecture hall in Building A — a tiered, 420-seat room built for keynotes, showcases and large lectures. A full AV rig, dual projection and a raised stage make it the go-to venue for department-wide events. Step-free access throughout, with a green room off the wings.</p>
+        </div>
+
+        <div class="sec-block reveal">
+          <h2>Amenities</h2>
+          <div class="amen-grid">
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Dual projection &amp; screens</div>
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg> Wireless mic array</div>
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V8l7-5 7 5v13"/></svg> Raised stage &amp; lectern</div>
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg> Step-free access</div>
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a2 2 0 0 1 2-2h2M16 3h2a2 2 0 0 1 2 2v2M20 17v2a2 2 0 0 1-2 2h-2M8 21H6a2 2 0 0 1-2-2v-2"/></svg> Hybrid streaming kit</div>
+            <div class="amen-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg> Adjustable lighting</div>
+          </div>
+        </div>
+
+        <div class="sec-block reveal">
+          <h2>Availability · Thu 12 Jun</h2>
+          <div class="card card-pad">
+            <div class="avail">
+              <div class="avail-row"><span class="dl">Wed</span><div class="slot-track"><span class="slot"></span><span class="slot"></span><span class="slot busy"></span><span class="slot busy"></span><span class="slot"></span><span class="slot"></span><span class="slot mine"></span><span class="slot"></span></div></div>
+              <div class="avail-row"><span class="dl">Thu</span><div class="slot-track"><span class="slot busy"></span><span class="slot"></span><span class="slot"></span><span class="slot mine"></span><span class="slot mine"></span><span class="slot"></span><span class="slot busy"></span><span class="slot busy"></span></div></div>
+              <div class="avail-row"><span class="dl">Fri</span><div class="slot-track"><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot busy"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span></div></div>
+            </div>
+            <div class="legend"><span><i style="background:var(--success-soft)"></i> Available</span><span><i style="background:var(--canvas-2)"></i> Booked</span><span><i style="background:var(--accent-soft);border:1px solid var(--accent-line)"></i> Your hold</span></div>
+          </div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="card book-panel reveal" data-d="1">
+          <h3>Request this space</h3>
+          <p class="muted" style="font-size:.86rem;margin:.3rem 0 1.2rem">Hold a slot — approval usually within a few hours.</p>
+          <div class="field" style="margin-bottom:1rem"><label>Date</label><input class="input" type="date" value="2026-06-12" /></div>
+          <div class="field" style="margin-bottom:1rem"><label>Time slot</label>
+            <div class="pill-times">
+              <button>09:00</button><button disabled>10:00</button><button class="on">14:00</button>
+              <button>15:00</button><button>16:00</button><button disabled>17:00</button>
+            </div>
+          </div>
+          <hr class="divider" style="margin:.4rem 0 1rem" />
+          <div class="summary-line"><span class="muted">Slot</span><span>14:00 – 16:00</span></div>
+          <div class="summary-line"><span class="muted">Capacity</span><span>420 seats</span></div>
+          <div class="summary-line"><span class="muted">Approver</span><span>D. Reyes</span></div>
+          <div class="summary-line tot"><span>Status</span><span style="color:var(--warn)">Will hold</span></div>
+          <a class="btn btn-primary btn-lg btn-block" href="book.html" style="margin-top:1.1rem">Continue to request <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <button class="btn btn-ghost btn-block" style="margin-top:.6rem">♥ Save to favourites</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script src="assets/venu.js"></script>
+<script>
+  document.querySelectorAll('.pill-times button:not(:disabled)').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.pill-times button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  }));
+</script>
+</body>
+</html>

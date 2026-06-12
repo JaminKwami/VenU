@@ -67,7 +67,8 @@ def get_taken_slots(venue, date):
     )
 
 
-def create_booking(user, venue, date, start_time, end_time, purpose='', attendee_count=None):
+def create_booking(user, venue, date, start_time, end_time, purpose='',
+                   attendee_count=None, department='', notes=''):
     """
     Validate and create a new Booking.  Always call this instead of
     Booking.objects.create() directly.
@@ -90,6 +91,8 @@ def create_booking(user, venue, date, start_time, end_time, purpose='', attendee
         start_time=start_time,
         end_time=end_time,
         purpose=purpose,
+        department=department,
+        notes=notes,
         attendee_count=attendee_count,
         status=BookingStatus.PENDING,
     )

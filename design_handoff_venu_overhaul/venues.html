@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VenU — Venues</title>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('venu_appearance_v1')||'{}');document.documentElement.setAttribute('data-theme',s.theme||'light');if(s.accent&&s.accent!=='cobalt')document.documentElement.setAttribute('data-accent',s.accent);document.documentElement.setAttribute('data-motion',s.motion||'cinematic');}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/venu.css" />
+<style>
+  .filter-bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
+  .search-box { position: relative; flex: 1; min-width: 220px; }
+  .search-box svg { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: var(--ink-45); }
+  .search-box input { padding-left: 2.7rem; }
+  .vgrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(290px,1fr)); gap: 1.4rem; }
+  .vcard { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--sh-1); transition: transform .5s var(--spring), box-shadow .4s var(--ease), border-color .3s; display: flex; flex-direction: column; }
+  .vcard:hover { transform: translateY(-5px); box-shadow: var(--sh-3); border-color: var(--line-2); }
+  .vcard .vis { height: 158px; position: relative; overflow: hidden; }
+  .vcard .vis .iso { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px); background-size: 24px 24px; transition: transform .6s var(--ease); }
+  .vcard:hover .vis .iso { transform: scale(1.09); }
+  .vcard .vis .vstatus { position: absolute; top: .8rem; left: .8rem; }
+  .vcard .vis .vcap { position: absolute; bottom: .8rem; right: .8rem; font-family: var(--font-mono); font-size: .62rem; font-weight: 700; letter-spacing: .06em; color: #fff; background: rgba(0,0,0,.32); padding: .3em .6em; border-radius: 6px; backdrop-filter: blur(4px); }
+  .vcard .body { padding: 1.1rem 1.2rem 1.3rem; display: flex; flex-direction: column; flex: 1; }
+  .vcard .body h3 { font-size: 1.18rem; }
+  .vcard .vmeta { display: flex; align-items: center; gap: .4rem; font-family: var(--font-mono); font-size: .64rem; color: var(--ink-45); text-transform: uppercase; letter-spacing: .05em; margin-top: .3rem; }
+  .vcard .amen { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .9rem; }
+  .vcard .amen .a { font-size: .72rem; padding: .25em .6em; border-radius: 100px; background: var(--canvas-2); color: var(--ink-65); }
+  .vcard .vfoot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 1.1rem; }
+  .vcard .rate { font-family: var(--font-mono); font-size: .8rem; color: var(--accent-ink); font-weight: 700; }
+  .toolbar-right { display: flex; align-items: center; gap: .5rem; margin-left: auto; }
+  .count-label { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-45); text-transform: uppercase; letter-spacing: .06em; }
+</style>
+</head>
+<body>
+<main class="main" data-shell="venues" data-title="Venues" data-user="Maya Chen" data-role="Student · Engineering" data-screen-label="Venues">
+  <header class="topbar"><div class="tb-title"></div><div class="tb-actions"><a class="btn btn-primary btn-sm" href="book.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> New booking</a></div></header>
+
+  <div class="page" style="max-width:1320px">
+    <div class="page-head reveal">
+      <span class="eyebrow">240 spaces · 18 buildings</span>
+      <h1>Find your space.</h1>
+      <p>Browse every bookable room, studio, lab and outdoor space on campus. Filter by what matters, then request in one tap.</p>
+    </div>
+
+    <div class="filter-bar reveal">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input" placeholder="Search venues, buildings or amenities…" />
+      </div>
+      <select class="select" style="max-width:170px"><option>All buildings</option><option>Building A</option><option>Arts Block</option><option>Science Wing</option><option>Sports Centre</option></select>
+      <select class="select" style="max-width:150px"><option>Any capacity</option><option>1–20</option><option>20–60</option><option>60–200</option><option>200+</option></select>
+      <span class="toolbar-right count-label">Showing 9 of 240</span>
+    </div>
+
+    <div class="filter-bar reveal" data-d="1" style="margin-bottom:1.8rem">
+      <button class="chip active">All types</button>
+      <button class="chip">Lecture halls</button>
+      <button class="chip">Studios</button>
+      <button class="chip">Labs</button>
+      <button class="chip">Seminar rooms</button>
+      <button class="chip">Outdoor</button>
+      <button class="chip">Music</button>
+      <button class="chip">Sports</button>
+    </div>
+
+    <div class="vgrid" id="vgrid"></div>
+  </div>
+</main>
+
+<script src="assets/venu.js"></script>
+<script>
+  const VENUES = [
+    { n: 'Hartman Auditorium', b: 'Building A · Level 1', cap: 420, type: 'Lecture hall', status: 'open', rate: '4.9', g: 'linear-gradient(135deg,#2a4ddb,#6b3df0)', am: ['Tiered seating','AV rig','Stage','Step-free'] },
+    { n: 'Briggs Design Studio', b: 'Arts Block · Level 3', cap: 40, type: 'Studio', status: 'filling', rate: '4.8', g: 'linear-gradient(135deg,#ff5a36,#d2861a)', am: ['Movable tables','Natural light','Pinboards'] },
+    { n: 'Maxwell Research Lab', b: 'Science Wing · Level 2', cap: 24, type: 'Lab', status: 'open', rate: '4.7', g: 'linear-gradient(135deg,#1f6c52,#2a4ddb)', am: ['Benches','Fume hoods','Safety kit'] },
+    { n: 'Quad Lawn', b: 'Central Campus', cap: 600, type: 'Outdoor', status: 'open', rate: '4.6', g: 'linear-gradient(135deg,#1f6c52,#7ec98f)', am: ['Power points','Marquee-ready'] },
+    { n: 'Lovelace Seminar 4', b: 'Building C · Level 2', cap: 18, type: 'Seminar room', status: 'full', rate: '4.8', g: 'linear-gradient(135deg,#6b3df0,#2a4ddb)', am: ['Whiteboard','Screen','Hybrid cam'] },
+    { n: 'Athena Recital Room', b: 'Music School · Level 1', cap: 60, type: 'Music', status: 'open', rate: '4.9', g: 'linear-gradient(135deg,#d2861a,#ff5a36)', am: ['Grand piano','Acoustic panels'] },
+    { n: 'Turing Maker Space', b: 'Engineering · Level 0', cap: 30, type: 'Lab', status: 'filling', rate: '4.7', g: 'linear-gradient(135deg,#2a4ddb,#1f6c52)', am: ['3D printers','Tool wall','Benches'] },
+    { n: 'Keller Sports Court', b: 'Sports Centre', cap: 200, type: 'Sports', status: 'open', rate: '4.5', g: 'linear-gradient(135deg,#1f6c52,#2a4ddb)', am: ['Full court','Changing rooms','Scoreboard'] },
+    { n: 'Da Vinci Lecture 2', b: 'Building A · Level 2', cap: 180, type: 'Lecture hall', status: 'filling', rate: '4.6', g: 'linear-gradient(135deg,#6b3df0,#ff5a36)', am: ['Tiered seating','Dual screens','Mics'] }
+  ];
+  const statusMap = { open: ['badge-approved','Open now'], filling: ['badge-pending','Filling'], full: ['badge-cancelled','Fully booked'] };
+  const grid = document.getElementById('vgrid');
+  grid.innerHTML = VENUES.map((v, i) => {
+    const [cls, label] = statusMap[v.status];
+    const d = (i % 3) + 1;
+    return `<a class="vcard reveal" data-d="${d}" href="venue.html">
+      <div class="vis"><div style="position:absolute;inset:0;background:${v.g}"></div><div class="iso"></div>
+        <span class="vstatus badge ${cls}"><span class="dot"></span>${label}</span>
+        <span class="vcap">CAP ${v.cap}</span></div>
+      <div class="body">
+        <h3>${v.n}</h3>
+        <div class="vmeta">${v.b} · ${v.type}</div>
+        <div class="amen">${v.am.map(a => `<span class="a">${a}</span>`).join('')}</div>
+        <div class="vfoot"><span class="rate">★ ${v.rate}</span><span class="btn btn-outline btn-sm">View &amp; book</span></div>
+      </div>
+    </a>`;
+  }).join('');
+  // re-run reveal pickup for injected nodes
+  window.dispatchEvent(new Event('resize'));
+</script>
+</body>
+</html>

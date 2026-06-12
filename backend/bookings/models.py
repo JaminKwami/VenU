@@ -38,6 +38,8 @@ class Booking(models.Model):
         default=BookingStatus.PENDING,
     )
     purpose = models.CharField(max_length=300, blank=True, default='')
+    department = models.CharField(max_length=120, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
     attendee_count = models.PositiveIntegerField(
         null=True, blank=True,
         help_text='Expected number of attendees (checked against venue capacity).',

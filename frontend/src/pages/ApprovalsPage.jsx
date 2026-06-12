@@ -1,243 +1,203 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useReveal } from '../hooks/useReveal';
+import { useTopbar } from '../components/TopbarContext';
+import { Icon } from '../components/icons';
+import { venueGradient, hm, prettyDate, todayISO, STATUS_BADGE } from '../utils/venueUi';
 
-const STATUS_MAP = {
-  PENDING: 'badge-pending',
-  APPROVED: 'badge-approved',
-  REJECTED: 'badge-rejected',
-  CANCELLED: 'badge-cancelled',
-};
-
-function Detail({ label, children }) {
-  return (
-    <div>
-      <span style={{ color: 'var(--ink-3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function RequestCard({ b, onApprove, onReject, acting }) {
-  return (
-    <div className="card fade-up" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <span className="avatar" style={{ width: 32, height: 32, fontSize: '0.7rem', flexShrink: 0 }}>
-            {(b.user.full_name || b.user.email)[0].toUpperCase()}
-          </span>
-          <div>
-            <div style={{ fontWeight: 600, lineHeight: 1.2 }}>{b.user.full_name || b.user.email.split('@')[0]}</div>
-            <div style={{ fontSize: '0.73rem', color: 'var(--ink-3)' }}>{b.user.email}</div>
-          </div>
-        </div>
-        <span className={`badge ${STATUS_MAP[b.status]}`}>{b.status}</span>
-      </div>
-
-      {/* Details */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem 0.75rem', fontSize: '0.82rem', color: 'var(--ink-2)' }}>
-        <Detail label="Venue"><strong style={{ color: 'var(--ink)' }}>{b.venue.name}</strong></Detail>
-        <Detail label="Date">{b.date}</Detail>
-        <Detail label="Time">{b.start_time.slice(0, 5)} – {b.end_time.slice(0, 5)}</Detail>
-        {b.attendee_count != null && <Detail label="Attendees">{b.attendee_count} / {b.venue.capacity}</Detail>}
-        {b.purpose && <Detail label="Purpose">{b.purpose}</Detail>}
-        {b.status === 'REJECTED' && b.rejection_reason && (
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Detail label="Rejection reason">{b.rejection_reason}</Detail>
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      {b.status === 'PENDING' && (
-        <div style={{ display: 'flex', gap: '0.55rem', marginTop: '0.25rem' }}>
-          <button
-            className="btn btn-success"
-            disabled={acting === b.id}
-            onClick={() => onApprove(b)}
-            style={{ flex: 1 }}
-          >
-            {acting === b.id ? '…' : 'Approve'}
-          </button>
-          <button
-            className="btn btn-danger"
-            disabled={acting === b.id}
-            onClick={() => onReject(b)}
-            style={{ flex: 1 }}
-          >
-            {acting === b.id ? '…' : 'Reject'}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ConfirmModal({ booking, mode, onConfirm, onClose, busy }) {
-  const [reason, setReason] = useState('');
-  const isReject = mode === 'reject';
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}
-    >
-      <div className="card fade-up" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div>
-          <h3 style={{ marginBottom: '0.35rem' }}>{isReject ? 'Reject booking?' : 'Approve booking?'}</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--ink-2)' }}>
-            {booking.venue.name} · {booking.date} · {booking.start_time.slice(0, 5)}–{booking.end_time.slice(0, 5)}
-            <br />Requested by {booking.user.full_name || booking.user.email}
-          </p>
-        </div>
-
-        {isReject && (
-          <div>
-            <label className="label">Reason <span style={{ color: 'var(--ink-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(shown to the requester)</span></label>
-            <input
-              className="input"
-              placeholder="e.g. Venue reserved for maintenance"
-              value={reason}
-              maxLength={500}
-              onChange={e => setReason(e.target.value)}
-              autoFocus
-            />
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '0.55rem' }}>
-          <button className="btn" onClick={onClose} disabled={busy} style={{ flex: 1 }}>Cancel</button>
-          <button
-            className={`btn ${isReject ? 'btn-danger' : 'btn-success'}`}
-            onClick={() => onConfirm(reason)}
-            disabled={busy}
-            style={{ flex: 1 }}
-          >
-            {busy ? '…' : isReject ? 'Reject' : 'Approve'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function initials(name) {
+  return name.split(/[\s@.]/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 }
 
 export default function ApprovalsPage() {
   usePageTitle('Approvals');
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(null);
-  const [filter, setFilter] = useState('PENDING');
-  const [modal, setModal] = useState(null);   // { booking, mode }
+  useTopbar('Approvals');
+  const [bookings, setBookings] = useState(null);
+  const [selId, setSelId] = useState(null);
+  const [filter, setFilter] = useState('Pending');
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState('');
+  const [acting, setActing] = useState(false);
   const [error, setError] = useState('');
+  const revealRef = useReveal([bookings != null]);
 
   useEffect(() => {
-    api.get('/bookings/').then(r => setBookings(r.data)).finally(() => setLoading(false));
+    api.get('/bookings/').then(r => {
+      setBookings(r.data);
+      const firstPending = r.data.find(b => b.status === 'PENDING');
+      if (firstPending) setSelId(firstPending.id);
+    }).catch(() => setBookings([]));
   }, []);
 
-  async function handleConfirm(reason) {
-    const { booking, mode } = modal;
-    setActing(booking.id);
+  const today = todayISO();
+  const all = bookings || [];
+  const pending = all.filter(b => b.status === 'PENDING');
+  const approvedToday = all.filter(b => b.status === 'APPROVED' && b.decided_at?.startsWith(today)).length;
+  const declinedToday = all.filter(b => b.status === 'REJECTED' && b.decided_at?.startsWith(today)).length;
+  const avgResponse = useMemo(() => {
+    const decided = all.filter(b => b.decided_at);
+    if (!decided.length) return null;
+    const ms = decided.reduce((acc, b) => acc + (new Date(b.decided_at) - new Date(b.created_at)), 0) / decided.length;
+    const h = ms / 3600000;
+    return h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : `${h.toFixed(1)}h`;
+  }, [all]);
+
+  const FILTERS = ['Pending', 'Today', 'High capacity', 'Decided'];
+  const visible = useMemo(() => {
+    switch (filter) {
+      case 'Today': return pending.filter(b => b.date === today);
+      case 'High capacity': return pending.filter(b => (b.attendee_count || 0) >= 100 || b.venue.capacity >= 200);
+      case 'Decided': return all.filter(b => ['APPROVED', 'REJECTED'].includes(b.status)).slice(0, 20);
+      default: return pending;
+    }
+  }, [filter, pending, all, today]);
+
+  const sel = all.find(b => b.id === selId) || visible[0] || null;
+
+  async function act(booking, action, declineReason = '') {
+    setActing(true);
     setError('');
     try {
-      const url = mode === 'reject'
-        ? `/bookings/${booking.id}/reject/`
-        : `/bookings/${booking.id}/approve/`;
-      const res = await api.patch(url, mode === 'reject' ? { reason } : {});
-      setBookings(prev => prev.map(b =>
-        b.id === booking.id
-          ? { ...b, status: res.data.status, rejection_reason: res.data.rejection_reason }
-          : b
-      ));
-      setModal(null);
+      const url = action === 'ok' ? `/bookings/${booking.id}/approve/` : `/bookings/${booking.id}/reject/`;
+      const res = await api.patch(url, action === 'ok' ? {} : { reason: declineReason });
+      setBookings(prev => prev.map(b => b.id === booking.id
+        ? { ...b, status: res.data.status, rejection_reason: res.data.rejection_reason, decided_at: res.data.decided_at }
+        : b));
+      setDeclining(false);
+      setReason('');
     } catch (err) {
       setError(err.response?.data?.detail || 'Action failed — please try again.');
     } finally {
-      setActing(null);
+      setActing(false);
     }
   }
 
-  const filters = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
-  const visible = filter === 'ALL' ? bookings : bookings.filter(b => b.status === filter);
+  const loading = bookings == null;
+  const fill = sel?.attendee_count ? Math.round((sel.attendee_count / sel.venue.capacity) * 100) : null;
 
   return (
-    <div className="page-content fade-up">
-      <div className="page-header">
-        <div>
-          <h1>Approvals</h1>
-          <p>Review and action booking requests</p>
-        </div>
-
-        {/* Filter pills */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {filters.map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: '0.3rem 0.85rem',
-                borderRadius: 99,
-                border: '1.5px solid',
-                borderColor: filter === f ? 'var(--ink)' : 'var(--border)',
-                background: filter === f ? 'var(--ink)' : 'transparent',
-                color: filter === f ? '#fff' : 'var(--ink-2)',
-                fontWeight: filter === f ? 600 : 400,
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s var(--ease)',
-              }}
-            >
-              {f === 'ALL' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
-              {' '}
-              <span style={{ opacity: 0.65, fontSize: '0.72rem' }}>
-                {f === 'ALL' ? bookings.length : bookings.filter(b => b.status === f).length}
-              </span>
-            </button>
-          ))}
-        </div>
+    <div className="page" style={{ maxWidth: 1280 }} ref={revealRef}>
+      <div className="page-head reveal">
+        <span className="eyebrow">Facilities queue</span>
+        <h1>Approvals</h1>
+        <p>
+          Review and action booking requests across all spaces.{' '}
+          {!loading && <b style={{ color: 'var(--warn)' }}>{pending.length} pending</b>}{!loading && ` need${pending.length === 1 ? 's' : ''} your attention.`}
+        </p>
       </div>
 
-      {error && <p className="error-msg" style={{ marginBottom: '1rem' }}>{error}</p>}
+      <div className="ap-stats reveal">
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--warn)' }} /><div className="stat-label">Pending</div><div className="stat-val">{loading ? '—' : pending.length}</div></div>
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--success)' }} /><div className="stat-label">Approved today</div><div className="stat-val">{loading ? '—' : approvedToday}</div></div>
+        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--danger)' }} /><div className="stat-label">Declined today</div><div className="stat-val">{loading ? '—' : declinedToday}</div></div>
+        <div className="card stat-card"><span className="stat-accent" /><div className="stat-label">Avg response</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{avgResponse || '—'}</div></div>
+      </div>
 
-      {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.85rem' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="skeleton" style={{ height: 32, width: '60%' }} />
-              <div className="skeleton" style={{ height: 14, width: '80%' }} />
-              <div className="skeleton" style={{ height: 14, width: '50%' }} />
+      <div className="filters reveal">
+        {FILTERS.map(f => (
+          <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>{f}</button>
+        ))}
+      </div>
+
+      {error && <div className="conflict reveal in" style={{ marginBottom: '1rem' }}><Icon.X strokeWidth={2} /><span>{error}</span></div>}
+
+      <div className="ap-grid reveal">
+        <div className="card req-list">
+          {loading && [1, 2, 3].map(i => (
+            <div key={i} className="req"><div className="skeleton" style={{ width: 38, height: 38, borderRadius: '50%' }} /><div style={{ flex: 1 }}><div className="skeleton" style={{ height: 14, width: '50%', marginBottom: 6 }} /><div className="skeleton" style={{ height: 12, width: '70%' }} /></div></div>
+          ))}
+          {!loading && visible.length === 0 && (
+            <div className="empty">
+              <span className="ic"><Icon.Approvals width={22} height={22} /></span>
+              <span>Queue is clear. Nothing waiting on you.</span>
             </div>
-          ))}
+          )}
+          {!loading && visible.map(b => {
+            const [cls, label] = STATUS_BADGE[b.status];
+            const decided = b.status !== 'PENDING';
+            return (
+              <div
+                key={b.id}
+                className={`req${sel?.id === b.id ? ' sel' : ''}${decided && filter !== 'Decided' ? ' dim' : ''}`}
+                onClick={() => { setSelId(b.id); setDeclining(false); setError(''); }}
+              >
+                <span className="avatar">{initials(b.user.full_name || b.user.email)}</span>
+                <div className="rinfo">
+                  <div className="rtitle">{b.purpose || b.venue.name}</div>
+                  <div className="rmeta">{b.venue.name} · {b.user.full_name || b.user.email}</div>
+                  <div className="rwhen">{prettyDate(b.date)} · {hm(b.start_time)}–{hm(b.end_time)}</div>
+                </div>
+                <div className="ract">
+                  <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                  {!decided && (
+                    <div className="mini-btns">
+                      <button className="ok" title="Approve" disabled={acting} onClick={e => { e.stopPropagation(); act(b, 'ok'); }}><Icon.Check /></button>
+                      <button className="no" title="Decline" disabled={acting} onClick={e => { e.stopPropagation(); setSelId(b.id); setDeclining(true); }}><Icon.X /></button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ) : visible.length === 0 ? (
-        <div className="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-          </svg>
-          <span>No {filter === 'ALL' ? '' : filter.toLowerCase() + ' '}requests.</span>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.85rem' }}>
-          {visible.map(b => (
-            <RequestCard
-              key={b.id}
-              b={b}
-              acting={acting}
-              onApprove={booking => setModal({ booking, mode: 'approve' })}
-              onReject={booking => setModal({ booking, mode: 'reject' })}
-            />
-          ))}
-        </div>
-      )}
 
-      {modal && (
-        <ConfirmModal
-          booking={modal.booking}
-          mode={modal.mode}
-          busy={acting === modal.booking.id}
-          onConfirm={handleConfirm}
-          onClose={() => setModal(null)}
-        />
-      )}
+        <aside>
+          {sel && (
+            <div className="card detail-card">
+              <div className="dh">
+                <span className="dvis" style={{ background: venueGradient(sel.venue.id) }} />
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1.15rem' }}>{sel.purpose || sel.venue.name}</div>
+                  <div className="muted" style={{ fontSize: '.82rem' }}>{sel.venue.name}</div>
+                </div>
+              </div>
+              <div className="dline"><span className="k">Requested by</span><span className="v">{sel.user.full_name || sel.user.email}</span></div>
+              {sel.department && <div className="dline"><span className="k">Department</span><span className="v">{sel.department}</span></div>}
+              <div className="dline"><span className="k">When</span><span className="v" style={{ textAlign: 'right' }}>{prettyDate(sel.date)} · {hm(sel.start_time)}–{hm(sel.end_time)}</span></div>
+              <div className="dline"><span className="k">Attendees</span><span className="v">{sel.attendee_count != null ? `${sel.attendee_count} / ${sel.venue.capacity}` : `— / ${sel.venue.capacity}`}</span></div>
+              {fill != null && (
+                <div style={{ margin: '.8rem 0 .2rem' }}>
+                  <div className="cap-bar"><span style={{ width: `${Math.min(fill, 100)}%`, background: fill > 90 ? 'var(--warn)' : 'var(--accent)' }} /></div>
+                  <div className="muted" style={{ fontSize: '.74rem', marginTop: '.4rem' }}>{fill}% of capacity{fill > 90 ? ' · near limit' : ''}</div>
+                </div>
+              )}
+              {(sel.notes || sel.rejection_reason) && (
+                <div className="req-note">
+                  {sel.status === 'REJECTED' && sel.rejection_reason ? `Declined: ${sel.rejection_reason}` : `“${sel.notes}”`}
+                </div>
+              )}
+              {sel.status === 'PENDING' && !declining && (
+                <div className="stack" style={{ gap: '.6rem', marginTop: '1rem' }}>
+                  <button className="btn btn-success btn-block" disabled={acting} onClick={() => act(sel, 'ok')}>
+                    <Icon.Check width={16} height={16} /> Approve request
+                  </button>
+                  <button className="btn btn-danger btn-block" disabled={acting} onClick={() => setDeclining(true)}>Decline</button>
+                </div>
+              )}
+              {sel.status === 'PENDING' && declining && (
+                <div className="stack" style={{ gap: '.6rem', marginTop: '1rem' }}>
+                  <div className="field">
+                    <label>Reason (shown to the requester)</label>
+                    <input className="input" autoFocus maxLength={500} placeholder="e.g. Venue reserved for maintenance" value={reason} onChange={e => setReason(e.target.value)} />
+                  </div>
+                  <div className="row" style={{ gap: '.6rem' }}>
+                    <button className="btn btn-ghost" style={{ flex: 1 }} disabled={acting} onClick={() => { setDeclining(false); setReason(''); }}>Cancel</button>
+                    <button className="btn btn-danger" style={{ flex: 1 }} disabled={acting} onClick={() => act(sel, 'no', reason)}>
+                      {acting ? '…' : 'Confirm decline'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {sel.status !== 'PENDING' && (
+                <div className="muted" style={{ fontSize: '.84rem', marginTop: '1rem' }}>
+                  This request has been {sel.status === 'APPROVED' ? 'approved' : sel.status === 'REJECTED' ? 'declined' : 'cancelled'}.
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import VenuesPage from './pages/VenuesPage';
+import VenueDetailPage from './pages/VenueDetailPage';
 import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
@@ -33,6 +34,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path='/dashboard' element={<DashboardPage />} />
             <Route path='/venues'    element={<VenuesPage />} />
+            <Route path='/venues/:id' element={<VenueDetailPage />} />
             <Route path='/book'      element={<BookingPage />} />
 
             <Route element={<AdminRoute />}>

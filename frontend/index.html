@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VenU — Venue Booking</title>
+    <script>
+      /* Apply persisted appearance before first paint (no FOUC).
+         Handles both the raw shape and zustand-persist's {state,version}. */
+      (function () {
+        try {
+          var raw = JSON.parse(localStorage.getItem('venu_appearance_v1') || '{}');
+          var s = raw.state || raw;
+          document.documentElement.setAttribute('data-theme', s.theme || 'light');
+          if (s.accent && s.accent !== 'cobalt') document.documentElement.setAttribute('data-accent', s.accent);
+          document.documentElement.setAttribute('data-motion', s.motion || 'cinematic');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

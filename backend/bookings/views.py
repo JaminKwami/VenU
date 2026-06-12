@@ -50,6 +50,8 @@ class BookingListCreateView(APIView):
                 start_time=data['start_time'],
                 end_time=data['end_time'],
                 purpose=data.get('purpose', ''),
+                department=data.get('department', ''),
+                notes=data.get('notes', ''),
                 attendee_count=data.get('attendee_count'),
             )
         except ValidationError as exc:

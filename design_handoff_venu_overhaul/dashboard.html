@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VenU — Dashboard</title>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('venu_appearance_v1')||'{}');document.documentElement.setAttribute('data-theme',s.theme||'light');if(s.accent&&s.accent!=='cobalt')document.documentElement.setAttribute('data-accent',s.accent);document.documentElement.setAttribute('data-motion',s.motion||'cinematic');}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/venu.css" />
+<style>
+  .dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1.4rem; align-items: start; }
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.2rem; margin-bottom: 1.4rem; }
+  .booking-item { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); transition: background .2s var(--ease); }
+  .booking-item:last-child { border-bottom: none; }
+  .booking-item:hover { background: var(--surface-2); }
+  .bi-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--r-sm); background: var(--canvas-2); flex-shrink: 0; }
+  .bi-date .d { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; line-height: 1; }
+  .bi-date .m { font-family: var(--font-mono); font-size: .58rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-45); margin-top: 2px; }
+  .bi-main { flex: 1; min-width: 0; }
+  .bi-main .t { font-weight: 600; font-size: 1rem; }
+  .bi-main .s { color: var(--ink-65); font-size: .85rem; margin-top: 2px; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 1.3rem; border-bottom: 1px solid var(--line); }
+  .card-head h3 { font-size: 1.15rem; }
+  .qa { display: flex; flex-direction: column; gap: .7rem; }
+  .qa a { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface-2); transition: all .35s var(--spring); }
+  .qa a:hover { transform: translateX(4px); border-color: var(--accent-line); background: var(--accent-soft); }
+  .qa a .qi { width: 38px; height: 38px; border-radius: var(--r-sm); background: var(--accent); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
+  .qa a .qi svg { width: 18px; height: 18px; }
+  .qa a .qt { font-weight: 600; }
+  .qa a .qd { font-size: .8rem; color: var(--ink-65); }
+  .activity { display: flex; flex-direction: column; }
+  .act-item { display: flex; gap: .9rem; padding: .9rem 1.3rem; position: relative; }
+  .act-item .ad { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .act-item .at { font-size: .88rem; }
+  .act-item .at b { font-weight: 600; }
+  .act-item .ax { font-family: var(--font-mono); font-size: .64rem; color: var(--ink-45); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+  .week-strip { display: grid; grid-template-columns: repeat(7,1fr); gap: .5rem; margin-top: .3rem; }
+  .wd { text-align: center; padding: .7rem .3rem; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); }
+  .wd .wl { font-family: var(--font-mono); font-size: .56rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-45); }
+  .wd .wn { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; margin-top: 2px; }
+  .wd .wdot { width: 6px; height: 6px; border-radius: 50%; margin: 5px auto 0; }
+  .wd.today { border-color: var(--accent); background: var(--accent-soft); }
+  @media (max-width: 1040px){ .stats-row{grid-template-columns:repeat(2,1fr)} .dash-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main class="main" data-shell="dashboard" data-title="Dashboard" data-user="Maya Chen" data-role="Student · Engineering" data-screen-label="Dashboard">
+  <header class="topbar"><div class="tb-title"></div><div class="tb-actions"><a class="btn btn-primary btn-sm" href="book.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> New booking</a></div></header>
+
+  <div class="page">
+    <div class="page-head reveal">
+      <span class="eyebrow">Tuesday · 11 June 2026</span>
+      <h1>Good afternoon, Maya.</h1>
+      <p>You have <b style="color:var(--ink)">2 bookings</b> coming up this week and <b style="color:var(--warn)">2 requests</b> awaiting approval.</p>
+    </div>
+
+    <div class="stats-row">
+      <div class="card stat-card reveal"><span class="stat-accent"></span><div class="stat-label">Upcoming</div><div class="stat-val">4</div><div class="muted" style="font-size:.8rem">bookings confirmed</div></div>
+      <div class="card stat-card reveal" data-d="1"><span class="stat-accent" style="background:var(--warn)"></span><div class="stat-label">Pending</div><div class="stat-val">2</div><div class="muted" style="font-size:.8rem">awaiting approval</div></div>
+      <div class="card stat-card reveal" data-d="2"><span class="stat-accent" style="background:var(--success)"></span><div class="stat-label">Hours / term</div><div class="stat-val">36</div><div class="muted" style="font-size:.8rem">across 9 venues</div></div>
+      <div class="card stat-card reveal" data-d="3"><span class="stat-accent" style="background:var(--coral)"></span><div class="stat-label">Most booked</div><div class="stat-val" style="font-size:1.5rem;margin-top:1rem">Briggs Studio</div><div class="muted" style="font-size:.8rem">7 sessions</div></div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="stack" style="gap:1.4rem">
+        <div class="card reveal">
+          <div class="card-head"><h3>Upcoming bookings</h3><a class="btn btn-outline btn-sm" href="venues.html">Book another</a></div>
+          <div>
+            <div class="booking-item">
+              <div class="bi-date"><span class="d">12</span><span class="m">Jun</span></div>
+              <div class="bi-main"><div class="t">Robotics Showcase</div><div class="s">Hartman Auditorium · 14:00–16:00 · <span class="mono" style="font-size:.78rem">420 cap</span></div></div>
+              <span class="badge badge-approved"><span class="dot"></span>Approved</span>
+            </div>
+            <div class="booking-item">
+              <div class="bi-date"><span class="d">13</span><span class="m">Jun</span></div>
+              <div class="bi-main"><div class="t">UX Crit Session</div><div class="s">Briggs Design Studio · 10:00–12:00 · <span class="mono" style="font-size:.78rem">40 cap</span></div></div>
+              <span class="badge badge-approved"><span class="dot"></span>Approved</span>
+            </div>
+            <div class="booking-item">
+              <div class="bi-date"><span class="d">16</span><span class="m">Jun</span></div>
+              <div class="bi-main"><div class="t">Materials Lab Session</div><div class="s">Maxwell Research Lab · 09:00–11:00 · <span class="mono" style="font-size:.78rem">24 cap</span></div></div>
+              <span class="badge badge-pending"><span class="dot"></span>Pending</span>
+            </div>
+            <div class="booking-item">
+              <div class="bi-date"><span class="d">18</span><span class="m">Jun</span></div>
+              <div class="bi-main"><div class="t">Society Fair</div><div class="s">Quad Lawn · 13:00–17:00 · <span class="mono" style="font-size:.78rem">600 cap</span></div></div>
+              <span class="badge badge-pending"><span class="dot"></span>Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-pad reveal">
+          <div class="row" style="justify-content:space-between;margin-bottom:1rem"><h3 style="font-size:1.15rem">This week</h3><span class="label">Jun 9 – 15</span></div>
+          <div class="week-strip">
+            <div class="wd"><div class="wl">Mon</div><div class="wn">9</div></div>
+            <div class="wd"><div class="wl">Tue</div><div class="wn">10</div></div>
+            <div class="wd today"><div class="wl">Wed</div><div class="wn">11</div><div class="wdot" style="background:var(--accent)"></div></div>
+            <div class="wd"><div class="wl">Thu</div><div class="wn">12</div><div class="wdot" style="background:var(--success)"></div></div>
+            <div class="wd"><div class="wl">Fri</div><div class="wn">13</div><div class="wdot" style="background:var(--success)"></div></div>
+            <div class="wd"><div class="wl">Sat</div><div class="wn">14</div></div>
+            <div class="wd"><div class="wl">Sun</div><div class="wn">15</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack" style="gap:1.4rem">
+        <div class="card card-pad reveal" data-d="1">
+          <h3 style="font-size:1.15rem;margin-bottom:1rem">Quick actions</h3>
+          <div class="qa">
+            <a href="book.html"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><div><div class="qt">New booking</div><div class="qd">Request a space in seconds</div></div></a>
+            <a href="venues.html"><span class="qi" style="background:var(--coral)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/></svg></span><div><div class="qt">Browse venues</div><div class="qd">Explore all 240 spaces</div></div></a>
+            <a href="approvals.html"><span class="qi" style="background:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><div><div class="qt">Review approvals</div><div class="qd">6 requests in the queue</div></div></a>
+          </div>
+        </div>
+
+        <div class="card reveal" data-d="2">
+          <div class="card-head"><h3>Recent activity</h3></div>
+          <div class="activity">
+            <div class="act-item"><span class="ad" style="background:var(--success)"></span><div><div class="at"><b>Hartman Auditorium</b> approved by D. Reyes</div><div class="ax">2 hours ago</div></div></div>
+            <div class="act-item"><span class="ad" style="background:var(--accent)"></span><div><div class="at">You requested <b>Maxwell Research Lab</b></div><div class="ax">5 hours ago</div></div></div>
+            <div class="act-item"><span class="ad" style="background:var(--warn)"></span><div><div class="at"><b>Society Fair</b> hold extended 24h</div><div class="ax">Yesterday · 16:40</div></div></div>
+            <div class="act-item"><span class="ad" style="background:var(--danger)"></span><div><div class="at"><b>Music Room 2</b> declined — slot conflict</div><div class="ax">Mon · 11:02</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/venu.js"></script>
+</body>
+</html>

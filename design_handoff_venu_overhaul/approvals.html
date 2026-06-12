@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VenU — Approvals</title>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('venu_appearance_v1')||'{}');document.documentElement.setAttribute('data-theme',s.theme||'light');if(s.accent&&s.accent!=='cobalt')document.documentElement.setAttribute('data-accent',s.accent);document.documentElement.setAttribute('data-motion',s.motion||'cinematic');}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/venu.css" />
+<style>
+  .ap-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.6rem; }
+  .ap-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; }
+  .req-list { display: flex; flex-direction: column; }
+  .req { display: flex; gap: 1rem; padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .2s var(--ease); position: relative; }
+  .req:last-child { border-bottom: none; }
+  .req:hover { background: var(--surface-2); }
+  .req.sel { background: var(--accent-soft); }
+  .req.sel::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .req .rinfo { flex: 1; min-width: 0; }
+  .req .rtitle { font-weight: 600; }
+  .req .rmeta { font-size: .84rem; color: var(--ink-65); margin-top: 2px; }
+  .req .rwhen { font-family: var(--font-mono); font-size: .64rem; color: var(--ink-45); text-transform: uppercase; letter-spacing: .05em; margin-top: 5px; }
+  .req .ract { display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; }
+  .mini-btns { display: flex; gap: .4rem; }
+  .mini-btns button { width: 32px; height: 32px; border-radius: var(--r-sm); display: grid; place-items: center; border: 1px solid var(--line-2); background: var(--surface); transition: all .25s var(--ease); }
+  .mini-btns button svg { width: 16px; height: 16px; }
+  .mini-btns .ok:hover { background: var(--success); color: #fff; border-color: var(--success); }
+  .mini-btns .no:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .detail-card { position: sticky; top: 90px; padding: 1.5rem; }
+  .detail-card .dh { display: flex; align-items: center; gap: .9rem; margin-bottom: 1.1rem; }
+  .detail-card .dvis { width: 52px; height: 52px; border-radius: var(--r-sm); }
+  .dline { display: flex; justify-content: space-between; padding: .55rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .dline .k { font-family: var(--font-mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-45); }
+  .dline .v { font-weight: 600; }
+  .req-note { margin: 1rem 0; padding: .9rem 1rem; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); font-size: .88rem; color: var(--ink-65); font-style: italic; }
+  .filters { display: flex; gap: .5rem; margin-bottom: 1.2rem; }
+  @media (max-width: 980px){ .ap-stats{grid-template-columns:repeat(2,1fr)} .ap-grid{grid-template-columns:1fr} .detail-card{position:static} }
+</style>
+</head>
+<body>
+<main class="main" data-shell="approvals" data-title="Approvals" data-user="Dana Reyes" data-role="Facilities · Admin" data-screen-label="Approvals">
+  <header class="topbar"><div class="tb-title"></div><div class="tb-actions"></div></header>
+
+  <div class="page" style="max-width:1280px">
+    <div class="page-head reveal">
+      <span class="eyebrow">Facilities queue</span>
+      <h1>Approvals</h1>
+      <p>Review and action booking requests across all spaces. <b style="color:var(--warn)">6 pending</b> need your attention.</p>
+    </div>
+
+    <div class="ap-stats reveal">
+      <div class="card stat-card"><span class="stat-accent" style="background:var(--warn)"></span><div class="stat-label">Pending</div><div class="stat-val">6</div></div>
+      <div class="card stat-card"><span class="stat-accent" style="background:var(--success)"></span><div class="stat-label">Approved today</div><div class="stat-val">14</div></div>
+      <div class="card stat-card"><span class="stat-accent" style="background:var(--danger)"></span><div class="stat-label">Declined</div><div class="stat-val">2</div></div>
+      <div class="card stat-card"><span class="stat-accent"></span><div class="stat-label">Avg response</div><div class="stat-val" style="font-size:1.7rem;margin-top:.9rem">2.4h</div></div>
+    </div>
+
+    <div class="filters reveal">
+      <button class="chip active">All pending</button>
+      <button class="chip">Today</button>
+      <button class="chip">High capacity</button>
+      <button class="chip">Outdoor</button>
+    </div>
+
+    <div class="ap-grid reveal">
+      <div class="card req-list" id="reqList"></div>
+      <aside>
+        <div class="card detail-card" id="detail"></div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script src="assets/venu.js"></script>
+<script>
+  const REQS = [
+    { id: 1, title: 'Robotics Showcase', venue: 'Hartman Auditorium', who: 'Maya Chen', dept: 'Engineering', when: 'Thu 12 Jun · 14:00–16:00', att: 180, cap: 420, g: 'linear-gradient(135deg,#2a4ddb,#6b3df0)', note: 'Need the stage mics tested 30 min before. Step-free route for two guests.', sub: '2h ago' },
+    { id: 2, title: 'Society Fair', venue: 'Quad Lawn', who: 'Students\u2019 Union', dept: 'Student Life', when: 'Wed 18 Jun · 13:00–17:00', att: 500, cap: 600, g: 'linear-gradient(135deg,#1f6c52,#7ec98f)', note: 'Marquee delivery at 09:00. Power for 12 stalls required.', sub: '4h ago' },
+    { id: 3, title: 'Chamber Recital', venue: 'Athena Recital Room', who: 'J. Okafor', dept: 'Music', when: 'Fri 13 Jun · 19:00–21:00', att: 55, cap: 60, g: 'linear-gradient(135deg,#d2861a,#ff5a36)', note: 'Piano tuning requested for the afternoon before.', sub: '5h ago' },
+    { id: 4, title: 'Materials Lab Session', venue: 'Maxwell Research Lab', who: 'Dr. P. Vasquez', dept: 'Sciences', when: 'Mon 16 Jun · 09:00–11:00', att: 22, cap: 24, g: 'linear-gradient(135deg,#1f6c52,#2a4ddb)', note: 'Standard safety induction covered. Needs fume hoods x4.', sub: 'Yesterday' },
+    { id: 5, title: 'UX Crit Session', venue: 'Briggs Design Studio', who: 'Maya Chen', dept: 'Arts & Design', when: 'Fri 13 Jun · 10:00–12:00', att: 32, cap: 40, g: 'linear-gradient(135deg,#ff5a36,#d2861a)', note: 'Movable tables in pods of 6 please.', sub: 'Yesterday' },
+    { id: 6, title: 'Hackathon Kickoff', venue: 'Turing Maker Space', who: 'CompSci Society', dept: 'Computer Science', when: 'Sat 21 Jun · 10:00–18:00', att: 28, cap: 30, g: 'linear-gradient(135deg,#2a4ddb,#1f6c52)', note: 'Overnight access requested — pending security sign-off.', sub: '2 days ago' }
+  ];
+  let selId = 1;
+  const list = document.getElementById('reqList');
+  const detail = document.getElementById('detail');
+
+  function renderList() {
+    list.innerHTML = REQS.map(r => `
+      <div class="req ${r.id === selId ? 'sel' : ''}" data-id="${r.id}">
+        <span class="avatar" style="background:var(--accent-soft)">${r.who.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
+        <div class="rinfo">
+          <div class="rtitle">${r.title}</div>
+          <div class="rmeta">${r.venue} · ${r.who}</div>
+          <div class="rwhen">${r.when}</div>
+        </div>
+        <div class="ract">
+          <span class="badge badge-pending"><span class="dot"></span>Pending</span>
+          <div class="mini-btns"><button class="ok" data-act="ok" data-id="${r.id}" title="Approve"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button><button class="no" data-act="no" data-id="${r.id}" title="Decline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+        </div>
+      </div>`).join('');
+  }
+  function renderDetail() {
+    const r = REQS.find(x => x.id === selId) || REQS[0];
+    const fill = Math.round(r.att / r.cap * 100);
+    detail.innerHTML = `
+      <div class="dh"><span class="dvis" style="background:${r.g}"></span><div><div style="font-family:var(--font-display);font-weight:600;font-size:1.15rem">${r.title}</div><div class="muted" style="font-size:.82rem">${r.venue}</div></div></div>
+      <div class="dline"><span class="k">Requested by</span><span class="v">${r.who}</span></div>
+      <div class="dline"><span class="k">Department</span><span class="v">${r.dept}</span></div>
+      <div class="dline"><span class="k">When</span><span class="v" style="text-align:right">${r.when}</span></div>
+      <div class="dline"><span class="k">Attendees</span><span class="v">${r.att} / ${r.cap}</span></div>
+      <div style="margin:.8rem 0 .2rem"><div class="cap-bar"><span style="width:${fill}%;background:${fill>90?'var(--warn)':'var(--accent)'}"></span></div><div class="muted" style="font-size:.74rem;margin-top:.4rem">${fill}% of capacity${fill>90?' · near limit':''}</div></div>
+      <div class="req-note">“${r.note}”</div>
+      <div class="stack" style="gap:.6rem"><button class="btn btn-success btn-block" data-act="ok" data-id="${r.id}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Approve request</button>
+      <div class="row" style="gap:.6rem"><button class="btn btn-ghost" style="flex:1">Comment</button><button class="btn btn-danger" style="flex:1" data-act="no" data-id="${r.id}">Decline</button></div></div>`;
+  }
+  function action(id, act) {
+    const r = REQS.find(x => x.id === id);
+    const card = list.querySelector(`.req[data-id="${id}"]`);
+    if (card) {
+      const badge = card.querySelector('.badge');
+      const mini = card.querySelector('.mini-btns');
+      if (act === 'ok') { badge.className = 'badge badge-approved'; badge.innerHTML = '<span class="dot"></span>Approved'; }
+      else { badge.className = 'badge badge-rejected'; badge.innerHTML = '<span class="dot"></span>Declined'; }
+      if (mini) mini.style.display = 'none';
+      card.style.opacity = '.6';
+    }
+  }
+  list.addEventListener('click', e => {
+    const actBtn = e.target.closest('[data-act]');
+    if (actBtn) { e.stopPropagation(); action(+actBtn.dataset.id, actBtn.dataset.act); return; }
+    const req = e.target.closest('.req');
+    if (req) { selId = +req.dataset.id; renderList(); renderDetail(); }
+  });
+  detail.addEventListener('click', e => {
+    const actBtn = e.target.closest('[data-act]');
+    if (actBtn) action(+actBtn.dataset.id, actBtn.dataset.act);
+  });
+  renderList(); renderDetail();
+</script>
+</body>
+</html>

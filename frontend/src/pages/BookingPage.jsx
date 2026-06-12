@@ -1,250 +1,269 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useReveal } from '../hooks/useReveal';
+import { useTopbar } from '../components/TopbarContext';
+import { Icon } from '../components/icons';
+import { venueGradient, hm, prettyDate, todayISO } from '../utils/venueUi';
 
-function VenuePreview({ venue }) {
-  if (!venue) return null;
-  return (
-    <div style={{
-      padding: '0.85rem 1rem',
-      background: 'rgba(0,0,0,0.04)',
-      borderRadius: 'var(--r-sm)',
-      border: '1px solid var(--border)',
-      marginTop: '0.5rem',
-      display: 'flex',
-      gap: '0.75rem',
-      alignItems: 'flex-start',
-    }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{venue.name}</div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--ink-2)', marginTop: '0.15rem' }}>
-          {venue.location} &nbsp;·&nbsp; Capacity {venue.capacity}
-        </div>
-      </div>
-    </div>
-  );
-}
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+const DURATIONS = [1, 2, 3];
+const STEPS = ['Space', 'Schedule', 'Details', 'Confirm'];
 
-function AvailabilityPanel({ slots, loading }) {
-  if (loading) return (
-    <div style={{ marginTop: '0.5rem' }}>
-      <div className="skeleton" style={{ height: 14, width: '60%' }} />
-    </div>
-  );
-  if (slots === null) return null;
-  return (
-    <div style={{
-      marginTop: '0.5rem',
-      padding: '0.75rem 1rem',
-      borderRadius: 'var(--r-sm)',
-      border: '1px solid var(--border)',
-      background: slots.length ? 'var(--warning-bg, rgba(146,64,14,0.06))' : 'var(--success-bg, rgba(21,128,61,0.06))',
-      fontSize: '0.8rem',
-    }}>
-      {slots.length === 0 ? (
-        <span style={{ color: 'var(--success, #15803d)', fontWeight: 600 }}>
-          All time slots are free on this date.
-        </span>
-      ) : (
-        <>
-          <div style={{ fontWeight: 600, marginBottom: '0.35rem', color: 'var(--ink)' }}>
-            Already taken on this date:
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {slots.map((s, i) => (
-              <span key={i} style={{
-                padding: '0.15rem 0.55rem',
-                borderRadius: 99,
-                border: '1px solid var(--border)',
-                background: '#fff',
-                fontVariantNumeric: 'tabular-nums',
-                color: 'var(--ink-2)',
-              }}>
-                {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-                {s.status === 'PENDING' && <span style={{ color: 'var(--ink-3)' }}> (pending)</span>}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
+const pad = h => `${String(h).padStart(2, '0')}:00`;
+
+function overlaps(taken, startH, durH) {
+  const s = pad(startH);
+  const e = pad(startH + durH);
+  return (taken || []).some(t => hm(t.start_time) < e && hm(t.end_time) > s);
 }
 
 export default function BookingPage() {
   usePageTitle('New Booking');
-  const navigate = useNavigate();
+  useTopbar('New Booking');
   const { state } = useLocation();
+
+  const [step, setStep] = useState(1);
   const [venues, setVenues] = useState([]);
-  const [form, setForm] = useState({
-    venue: state?.venueId ? String(state.venueId) : '',
-    date: '', start_time: '', end_time: '', purpose: '', attendee_count: '',
-  });
+  const [venueId, setVenueId] = useState(state?.venueId ?? null);
+  const [date, setDate] = useState(state?.date || todayISO());
+  const [hour, setHour] = useState(state?.hour ?? null);
+  const [duration, setDuration] = useState(2);
+  const [taken, setTaken] = useState([]);
+  const [purpose, setPurpose] = useState('');
+  const [attendees, setAttendees] = useState('');
+  const [department, setDepartment] = useState('');
+  const [notes, setNotes] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [takenSlots, setTakenSlots] = useState(null);
-  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [created, setCreated] = useState(null);
+  const revealRef = useReveal([venues.length > 0]);
 
   useEffect(() => {
-    api.get('/venues/').then(r => setVenues(r.data));
+    api.get('/venues/').then(r => {
+      setVenues(r.data);
+      if (!venueId && r.data.length) setVenueId(r.data[0].id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch availability whenever venue + date are both chosen.
   useEffect(() => {
-    if (!form.venue || !form.date) { setTakenSlots(null); return; }
+    if (!venueId || !date) { setTaken([]); return; }
     let stale = false;
-    setSlotsLoading(true);
-    api.get('/bookings/availability/', { params: { venue: form.venue, date: form.date } })
-      .then(r => { if (!stale) setTakenSlots(r.data.taken_slots); })
-      .catch(() => { if (!stale) setTakenSlots(null); })
-      .finally(() => { if (!stale) setSlotsLoading(false); });
+    api.get('/bookings/availability/', { params: { venue: venueId, date } })
+      .then(r => { if (!stale) setTaken(r.data.taken_slots); })
+      .catch(() => { if (!stale) setTaken([]); });
     return () => { stale = true; };
-  }, [form.venue, form.date]);
+  }, [venueId, date]);
 
-  const selectedVenue = venues.find(v => v.id === Number(form.venue));
+  const venue = venues.find(v => v.id === Number(venueId));
+  const clash = hour != null && overlaps(taken, hour, duration);
+  const nearestFree = useMemo(() => {
+    if (!clash) return null;
+    return HOURS.find(h => !overlaps(taken, h, duration) && h !== hour) ?? null;
+  }, [clash, taken, duration, hour]);
 
-  function handleChange(e) {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const overCap = venue && attendees && Number(attendees) > venue.capacity;
+
+  const canContinue =
+    step === 1 ? !!venue :
+    step === 2 ? hour != null && !clash :
+    step === 3 ? agree && !overCap && !submitting :
+    false;
+
+  async function next() {
     setError('');
-  }
-
-  // Client-side overlap check so users get instant feedback.
-  const hasLocalConflict = takenSlots?.some(s =>
-    form.start_time && form.end_time &&
-    form.start_time < s.end_time.slice(0, 5) &&
-    form.end_time > s.start_time.slice(0, 5)
-  );
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.venue) { setError('Please select a venue.'); return; }
-    if (form.start_time >= form.end_time) { setError('End time must be after start time.'); return; }
-    if (selectedVenue && form.attendee_count && Number(form.attendee_count) > selectedVenue.capacity) {
-      setError(`Attendee count exceeds the venue capacity of ${selectedVenue.capacity}.`);
-      return;
-    }
-    setError(''); setLoading(true);
+    if (step < 3) { setStep(step + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    // submit
+    setSubmitting(true);
     try {
-      await api.post('/bookings/', {
-        ...form,
-        venue: Number(form.venue),
-        attendee_count: form.attendee_count ? Number(form.attendee_count) : null,
+      const res = await api.post('/bookings/', {
+        venue: venue.id,
+        date,
+        start_time: pad(hour),
+        end_time: pad(hour + duration),
+        purpose,
+        department,
+        notes,
+        attendee_count: attendees ? Number(attendees) : null,
       });
-      setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 2200);
+      setCreated(res.data);
+      setStep(4);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not submit — check for conflicts and try again.');
+      setError(err.response?.data?.detail || 'Could not submit the request — please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
-  const today = new Date().toISOString().split('T')[0];
-
-  if (success) return (
-    <div className="page-content fade-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem', textAlign: 'center' }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--success-bg)', border: '2px solid var(--success-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <h2>Booking submitted!</h2>
-      <p>Your request is pending admin approval.<br/>Redirecting you to the dashboard…</p>
-    </div>
-  );
+  function reset() {
+    setStep(1); setHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
+  }
 
   return (
-    <div className="page-content fade-up">
-      <div className="page-header">
-        <div>
-          <h1>New Booking</h1>
-          <p>Request a space for your event or activity</p>
-        </div>
+    <div className="page" style={{ maxWidth: 1200 }} ref={revealRef}>
+      <div className="page-head reveal">
+        <span className="eyebrow">Request a space</span>
+        <h1>New booking</h1>
       </div>
 
-      <div style={{ maxWidth: 540 }}>
-        <form className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }} onSubmit={handleSubmit}>
-
-          {/* Venue */}
-          <div>
-            <label className="label">Venue</label>
-            <select className="select" name="venue" value={form.venue} onChange={handleChange} required>
-              <option value="">Select a venue…</option>
-              {venues.map(v => (
-                <option key={v.id} value={v.id}>{v.name} — {v.location} (cap {v.capacity})</option>
-              ))}
-            </select>
-            <VenuePreview venue={selectedVenue} />
-          </div>
-
-          {/* Date */}
-          <div>
-            <label className="label">Date</label>
-            <input className="input" type="date" name="date" value={form.date} onChange={handleChange} required min={today} />
-            <AvailabilityPanel slots={takenSlots} loading={slotsLoading} />
-          </div>
-
-          {/* Time range */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            <div>
-              <label className="label">Start</label>
-              <input className="input" type="time" name="start_time" value={form.start_time} onChange={handleChange} required />
+      <div className="stepper reveal">
+        {STEPS.map((lb, i) => (
+          <span key={lb} style={{ display: 'contents' }}>
+            {i > 0 && <span className="stp-line" />}
+            <div className={`stp${step === i + 1 ? ' on' : ''}${step > i + 1 ? ' done' : ''}`}>
+              <span className="n">{step > i + 1 ? '✓' : i + 1}</span><span className="lb">{lb}</span>
             </div>
-            <div>
-              <label className="label">End</label>
-              <input className="input" type="time" name="end_time" value={form.end_time} onChange={handleChange} required />
-            </div>
-          </div>
+          </span>
+        ))}
+      </div>
 
-          {/* Conflict warning */}
-          {hasLocalConflict && (
-            <p className="error-msg" style={{ marginTop: -8 }}>
-              This time overlaps an existing booking — pick a different slot.
-            </p>
+      <div className="book-grid reveal">
+        <div className="card card-pad">
+          {/* Step 1 — Space */}
+          {step === 1 && (
+            <div className="step-panel active">
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '.4rem' }}>Choose a space</h2>
+              <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>Pick a venue, or browse the full catalogue first.</p>
+              <div className="venue-pick">
+                {venues.slice(0, 6).map(v => (
+                  <button key={v.id} className={`vp${v.id === Number(venueId) ? ' on' : ''}`} onClick={() => { setVenueId(v.id); setHour(null); }}>
+                    <span className="vpi" style={{ background: venueGradient(v.id) }} />
+                    <div>
+                      <div className="vpn">{v.name}</div>
+                      <div className="vpm">{v.building || v.location} · {v.capacity} cap</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <Link className="btn btn-outline" to="/venues" style={{ marginTop: '1rem' }}>Browse all venues</Link>
+            </div>
           )}
 
-          {/* Duration hint */}
-          {form.start_time && form.end_time && form.end_time > form.start_time && (() => {
-            const [sh, sm] = form.start_time.split(':').map(Number);
-            const [eh, em] = form.end_time.split(':').map(Number);
-            const mins = (eh * 60 + em) - (sh * 60 + sm);
-            const h = Math.floor(mins / 60), m = mins % 60;
-            return (
-              <div style={{ marginTop: -8, fontSize: '0.78rem', color: 'var(--ink-3)' }}>
-                Duration: {h > 0 ? `${h}h ` : ''}{m > 0 ? `${m}m` : ''}
+          {/* Step 2 — Schedule */}
+          {step === 2 && (
+            <div className="step-panel active">
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '.4rem' }}>Pick a date &amp; time</h2>
+              <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>We'll flag any clashes before you submit.</p>
+              <div className="field" style={{ marginBottom: '1.2rem', maxWidth: 260 }}>
+                <label>Date</label>
+                <input className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); }} />
               </div>
-            );
-          })()}
+              <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
+              <div className="time-grid">
+                {HOURS.map(h => {
+                  const busy = overlaps(taken, h, 1);
+                  return (
+                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`} disabled={busy} onClick={() => setHour(h)}>
+                      {pad(h)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="field" style={{ marginTop: '1.2rem', maxWidth: 260 }}>
+                <label>Duration</label>
+                <select className="select" value={duration} onChange={e => setDuration(Number(e.target.value))}>
+                  {DURATIONS.map(d => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
+                </select>
+              </div>
+              {hour != null && (
+                <div className={`conflict${clash ? '' : ' ok'}`}>
+                  {clash ? <Icon.X strokeWidth={2} /> : <Icon.Approvals strokeWidth={2} />}
+                  <span>
+                    {clash
+                      ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
+                      : `${pad(hour)}–${pad(hour + duration)} is free. No clashes detected for this slot.`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Attendees */}
-          <div>
-            <label className="label">Expected attendees <span style={{ color: 'var(--ink-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
-            <input
-              className="input"
-              type="number"
-              name="attendee_count"
-              min="1"
-              max={selectedVenue?.capacity || undefined}
-              placeholder={selectedVenue ? `Up to ${selectedVenue.capacity}` : 'e.g. 30'}
-              value={form.attendee_count}
-              onChange={handleChange}
-            />
+          {/* Step 3 — Details */}
+          {step === 3 && (
+            <div className="step-panel active">
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '.4rem' }}>Booking details</h2>
+              <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>Help the approver understand your request.</p>
+              <div className="stack" style={{ gap: '1rem' }}>
+                <div className="field">
+                  <label>Purpose / event name</label>
+                  <input className="input" placeholder="e.g. Robotics Showcase 2026" value={purpose} onChange={e => setPurpose(e.target.value)} />
+                </div>
+                <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Expected attendees</label>
+                    <input className="input" type="number" min="1" max={venue?.capacity} placeholder={venue ? `Up to ${venue.capacity}` : ''} value={attendees} onChange={e => setAttendees(e.target.value)} />
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Department</label>
+                    <input className="input" placeholder="e.g. Engineering" value={department} onChange={e => setDepartment(e.target.value)} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Notes for facilities (optional)</label>
+                  <textarea className="input" rows={3} placeholder="Equipment, layout or access requests…" value={notes} onChange={e => setNotes(e.target.value)} />
+                </div>
+                {overCap && (
+                  <div className="conflict"><Icon.X strokeWidth={2} /><span>Attendee count exceeds the venue capacity of {venue.capacity}.</span></div>
+                )}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: '.9rem', color: 'var(--ink-65)' }}>
+                  <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                  I agree to the venue use policy &amp; cancellation terms.
+                </label>
+                {error && <div className="conflict"><Icon.X strokeWidth={2} /><span>{error}</span></div>}
+              </div>
+            </div>
+          )}
+
+          {/* Step 4 — Confirm */}
+          {step === 4 && created && (
+            <div className="step-panel active">
+              <div className="success-wrap">
+                <div className="success-ring"><Icon.Check /></div>
+                <h2 style={{ fontSize: '1.6rem' }}>Request submitted!</h2>
+                <p className="muted" style={{ maxWidth: '42ch', margin: '.6rem auto 0' }}>
+                  Your request for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> is in the
+                  approvals queue — the outcome will appear on your dashboard.
+                  Reference <span className="mono" style={{ color: 'var(--accent-ink)' }}>#VENU-{created.id}</span>.
+                </p>
+                <div className="row" style={{ gap: '.7rem', justifyContent: 'center', marginTop: '1.6rem' }}>
+                  <Link className="btn btn-primary" to="/dashboard">Go to dashboard</Link>
+                  <button className="btn btn-ghost" onClick={reset}>Book another</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step < 4 && (
+            <div className="nav-row">
+              <button className="btn btn-ghost" style={{ visibility: step === 1 ? 'hidden' : 'visible' }} onClick={() => setStep(s => Math.max(1, s - 1))}>
+                Back
+              </button>
+              <button className="btn btn-primary" disabled={!canContinue} onClick={next}>
+                {step === 3 ? (submitting ? 'Submitting…' : 'Submit request') : <>Continue <Icon.Arrow width={16} height={16} /></>}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <aside>
+          <div className="card sum-card">
+            <h3>Summary</h3>
+            <div className="sum-line"><span className="k">Venue</span><span className="v">{venue?.name || '—'}</span></div>
+            <div className="sum-line"><span className="k">Location</span><span className="v">{venue ? `${venue.building || venue.location} · ${venue.capacity} cap` : '—'}</span></div>
+            <div className="sum-line"><span className="k">Date</span><span className="v">{prettyDate(date)}</span></div>
+            <div className="sum-line"><span className="k">Time</span><span className="v">{hour != null ? `${pad(hour)} – ${pad(hour + duration)}` : '—'}</span></div>
+            <div className="sum-line"><span className="k">Attendees</span><span className="v">{attendees || '—'}</span></div>
+            <div className="sum-line"><span className="k">Approval</span><span className="v">Facilities admin</span></div>
+            <div style={{ marginTop: '1.1rem', padding: '.9rem 1rem', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--line)', fontSize: '.84rem', color: 'var(--ink-65)', display: 'flex', gap: '.6rem', alignItems: 'center' }}>
+              <Icon.Clock width={18} height={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              Conflicts are checked live as you pick a slot.
+            </div>
           </div>
-
-          {/* Purpose */}
-          <div>
-            <label className="label">Purpose <span style={{ color: 'var(--ink-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
-            <input className="input" name="purpose" placeholder="e.g. Study group, Lecture, Club meeting…" value={form.purpose} onChange={handleChange} />
-          </div>
-
-          {error && <p className="error-msg">{error}</p>}
-
-          <button className="btn btn-primary" type="submit" disabled={loading || hasLocalConflict} style={{ width: '100%', padding: '0.75rem' }}>
-            {loading ? 'Submitting…' : 'Submit booking request'}
-          </button>
-        </form>
+        </aside>
       </div>
     </div>
   );

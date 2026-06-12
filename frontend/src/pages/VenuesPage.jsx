@@ -1,109 +1,132 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useReveal } from '../hooks/useReveal';
+import { useTopbar } from '../components/TopbarContext';
+import { Icon } from '../components/icons';
+import { venueGradient } from '../utils/venueUi';
 
-function CapacityBar({ capacity }) {
-  const max = 500;
-  const pct = Math.min((capacity / max) * 100, 100);
-  return (
-    <div style={{ marginTop: '0.85rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-        <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-3)' }}>Capacity</span>
-        <span style={{ fontSize: '0.78rem', fontWeight: 650, color: 'var(--ink)' }}>{capacity.toLocaleString()}</span>
-      </div>
-      <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 99, transition: 'width 0.6s var(--ease)' }} />
-      </div>
-    </div>
-  );
-}
+const CAP_RANGES = {
+  'Any capacity': [0, Infinity],
+  '1–20': [1, 20],
+  '20–60': [20, 60],
+  '60–200': [60, 200],
+  '200+': [200, Infinity],
+};
 
 export default function VenuesPage() {
   usePageTitle('Venues');
-  const [venues, setVenues] = useState([]);
-  const [loading, setLoading] = useState(true);
+  useTopbar('Venues', (
+    <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
+  ));
+  const [venues, setVenues] = useState(null);
   const [search, setSearch] = useState('');
-  const navigate = useNavigate();
+  const [building, setBuilding] = useState('All buildings');
+  const [capRange, setCapRange] = useState('Any capacity');
+  const [type, setType] = useState('All types');
+  const revealRef = useReveal([venues != null, search, building, capRange, type]);
 
   useEffect(() => {
-    api.get('/venues/').then(r => setVenues(r.data)).finally(() => setLoading(false));
+    api.get('/venues/').then(r => setVenues(r.data)).catch(() => setVenues([]));
   }, []);
 
-  const filtered = venues.filter(v =>
-    v.name.toLowerCase().includes(search.toLowerCase()) ||
-    v.location.toLowerCase().includes(search.toLowerCase())
+  const buildings = useMemo(
+    () => ['All buildings', ...new Set((venues || []).map(v => v.building).filter(Boolean))],
+    [venues],
+  );
+  const types = useMemo(
+    () => ['All types', ...new Set((venues || []).map(v => v.venue_type).filter(Boolean))],
+    [venues],
   );
 
+  const filtered = useMemo(() => {
+    const [lo, hi] = CAP_RANGES[capRange];
+    const q = search.toLowerCase();
+    return (venues || []).filter(v =>
+      (v.name.toLowerCase().includes(q) ||
+        v.location.toLowerCase().includes(q) ||
+        (v.building || '').toLowerCase().includes(q) ||
+        (v.amenities || []).some(a => a.toLowerCase().includes(q))) &&
+      (building === 'All buildings' || v.building === building) &&
+      (type === 'All types' || v.venue_type === type) &&
+      v.capacity >= lo && v.capacity <= hi,
+    );
+  }, [venues, search, building, capRange, type]);
+
+  const loading = venues == null;
+  const buildingCount = new Set((venues || []).map(v => v.building).filter(Boolean)).size;
+
   return (
-    <div className="page-content fade-up">
-      <div className="page-header">
-        <div>
-          <h1>Venues</h1>
-          <p>Browse available spaces and book instantly</p>
-        </div>
-        <input
-          className="input"
-          style={{ width: 220, marginTop: 0 }}
-          placeholder="Search venues…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+    <div className="page" style={{ maxWidth: 1320 }} ref={revealRef}>
+      <div className="page-head reveal">
+        <span className="eyebrow">
+          {loading ? 'Loading…' : `${venues.length} ${venues.length === 1 ? 'space' : 'spaces'}${buildingCount ? ` · ${buildingCount} ${buildingCount === 1 ? 'building' : 'buildings'}` : ''}`}
+        </span>
+        <h1>Find your space.</h1>
+        <p>Browse every bookable room, studio, lab and outdoor space on campus. Filter by what matters, then request in one tap.</p>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-          {[1,2,3].map(i => (
-            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="skeleton" style={{ height: 20, width: '70%' }} />
-              <div className="skeleton" style={{ height: 14, width: '50%' }} />
-              <div className="skeleton" style={{ height: 14, width: '90%' }} />
-              <div className="skeleton" style={{ height: 14, width: '80%' }} />
-              <div className="skeleton" style={{ height: 36, marginTop: '0.5rem' }} />
-            </div>
+      <div className="filter-bar reveal">
+        <div className="search-box">
+          <Icon.Search />
+          <input
+            className="input"
+            placeholder="Search venues, buildings or amenities…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <select className="select" style={{ maxWidth: 170 }} value={building} onChange={e => setBuilding(e.target.value)}>
+          {buildings.map(b => <option key={b}>{b}</option>)}
+        </select>
+        <select className="select" style={{ maxWidth: 150 }} value={capRange} onChange={e => setCapRange(e.target.value)}>
+          {Object.keys(CAP_RANGES).map(c => <option key={c}>{c}</option>)}
+        </select>
+        <span className="toolbar-right count-label">
+          {loading ? '…' : `Showing ${filtered.length} of ${venues.length}`}
+        </span>
+      </div>
+
+      {types.length > 1 && (
+        <div className="filter-bar reveal" data-d="1" style={{ marginBottom: '1.8rem' }}>
+          {types.map(t => (
+            <button key={t} className={`chip${type === t ? ' active' : ''}`} onClick={() => setType(t)}>{t}</button>
           ))}
         </div>
+      )}
+
+      {loading ? (
+        <div className="vgrid">
+          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 330, borderRadius: 'var(--r-lg)' }} />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="empty">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-          <span>{search ? 'No venues match your search.' : 'No venues available.'}</span>
+        <div className="empty card" style={{ borderRadius: 'var(--r-lg)' }}>
+          <span className="ic"><Icon.Venues width={24} height={24} /></span>
+          <span>{search || type !== 'All types' ? 'Nothing matches those filters.' : 'No venues in the catalogue yet.'}</span>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(268px, 1fr))', gap: '1rem' }}>
+        <div className="vgrid">
           {filtered.map((v, i) => (
-            <div key={v.id} className={`card fade-up stagger-${(i % 6) + 1}`}
-              style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                <h3 style={{ lineHeight: 1.3 }}>{v.name}</h3>
-                <span className="badge badge-active" style={{ flexShrink: 0 }}>Active</span>
+            <Link className="vcard reveal" data-d={(i % 3) + 1} key={v.id} to={`/venues/${v.id}`}>
+              <div className="vis">
+                <div style={{ position: 'absolute', inset: 0, background: venueGradient(v.id) }} />
+                <div className="iso" />
+                <span className="vstatus badge badge-approved"><span className="dot" />Bookable</span>
+                <span className="vcap">CAP {v.capacity}</span>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', color: 'var(--ink-2)', fontSize: '0.82rem' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                {v.location}
+              <div className="body">
+                <h3>{v.name}</h3>
+                <div className="vmeta">{[v.building, v.venue_type].filter(Boolean).join(' · ') || v.location}</div>
+                {(v.amenities || []).length > 0 && (
+                  <div className="amen">{v.amenities.slice(0, 4).map(a => <span className="a" key={a}>{a}</span>)}</div>
+                )}
+                <div className="vfoot">
+                  <span className="rate mono" style={{ fontSize: '.72rem' }}>{v.location}</span>
+                  <span className="btn btn-outline btn-sm">View &amp; book</span>
+                </div>
               </div>
-
-              {v.description && (
-                <p style={{ fontSize: '0.83rem', marginTop: '0.6rem', color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {v.description}
-                </p>
-              )}
-
-              <CapacityBar capacity={v.capacity} />
-
-              <button
-                className="btn btn-primary"
-                style={{ width: '100%', marginTop: '1.1rem' }}
-                onClick={() => navigate('/book', { state: { venueId: v.id } })}
-              >
-                Book this space
-              </button>
-            </div>
+            </Link>
           ))}
         </div>
       )}
