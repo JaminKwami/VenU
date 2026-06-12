@@ -132,8 +132,8 @@ export default function ApprovalsPage() {
                   <span className={`badge ${cls}`}><span className="dot" />{label}</span>
                   {!decided && (
                     <div className="mini-btns">
-                      <button className="ok" title="Approve" disabled={acting} onClick={e => { e.stopPropagation(); act(b, 'ok'); }}><Icon.Check /></button>
-                      <button className="no" title="Decline" disabled={acting} onClick={e => { e.stopPropagation(); setSelId(b.id); setDeclining(true); }}><Icon.X /></button>
+                      <button className="ok" title="Approve" aria-label="Approve request" disabled={acting} onClick={e => { e.stopPropagation(); act(b, 'ok'); }}><Icon.Check /></button>
+                      <button className="no" title="Decline" aria-label="Decline request" disabled={acting} onClick={e => { e.stopPropagation(); setSelId(b.id); setDeclining(true); }}><Icon.X /></button>
                     </div>
                   )}
                 </div>

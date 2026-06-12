@@ -87,6 +87,7 @@ export default function Layout() {
           className="icon-btn"
           onClick={handleLogout}
           title="Log out"
+          aria-label="Log out"
           style={{ width: 32, height: 32, border: 'none', background: 'transparent' }}
         >
           <Icon.Logout />
