@@ -156,6 +156,14 @@ export default function VenueDetailPage() {
             <h2>Availability · {prettyDate(date)} – {prettyDate(addDays(date, 2))}</h2>
             <div className="card card-pad">
               <div className="avail">
+                <div className="avail-row avail-ticks" aria-hidden="true">
+                  <span className="dl" />
+                  <div className="slot-track">
+                    {SLOT_HOURS.map(h => (
+                      <span key={h} className="slot-tick">{String(h).padStart(2, '0')}</span>
+                    ))}
+                  </div>
+                </div>
                 {[date, addDays(date, 1), addDays(date, 2)].map(iso => (
                   <div className="avail-row" key={iso}>
                     <span className="dl">{prettyDate(iso).split(' ')[0]}</span>

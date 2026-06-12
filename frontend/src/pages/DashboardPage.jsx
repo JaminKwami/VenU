@@ -160,7 +160,7 @@ export default function DashboardPage() {
         <div className="card stat-card reveal" data-d="3">
           <span className="stat-accent" style={{ background: 'var(--coral)' }} />
           <div className="stat-label">Most booked</div>
-          <div className="stat-val" style={{ fontSize: '1.5rem', marginTop: '1rem' }}>{loading ? '—' : (mostBooked?.name || '—')}</div>
+          <div className="stat-val" style={{ fontSize: '1.5rem', marginTop: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loading ? '—' : (mostBooked?.name || '—')}</div>
           <div className="muted" style={{ fontSize: '.8rem' }}>{mostBooked ? `${mostBooked.n} ${mostBooked.n === 1 ? 'session' : 'sessions'}` : 'no bookings yet'}</div>
         </div>
       </div>

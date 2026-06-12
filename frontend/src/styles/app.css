@@ -90,6 +90,8 @@
 .slot.busy { background: var(--canvas-2); }
 .slot.mine { background: var(--accent-soft); border-color: var(--accent-line); }
 .slot:hover { transform: scaleY(1.12); }
+.avail-ticks { margin-bottom: -.2rem; }
+.slot-tick { flex: 1; font-family: var(--font-mono); font-size: .6rem; color: var(--ink-45); text-align: center; user-select: none; }
 .legend { display: flex; gap: 1.2rem; margin-top: .8rem; font-size: .76rem; color: var(--ink-65); }
 .legend span { display: flex; align-items: center; gap: .4rem; }
 .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
