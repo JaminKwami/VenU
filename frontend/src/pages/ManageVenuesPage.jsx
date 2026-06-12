@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useReveal } from '../hooks/useReveal';
@@ -10,6 +11,7 @@ import VenueForm from '../components/VenueForm';
 export default function ManageVenuesPage() {
   usePageTitle('Manage Venues');
   useTopbar('Manage Venues', null);
+  const navigate = useNavigate();
   const [venues, setVenues] = useState(null);
   const [statsMap, setStatsMap] = useState({});
   const [search, setSearch] = useState('');
@@ -184,16 +186,18 @@ export default function ManageVenuesPage() {
                   <td>{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
                   <td>
                     <button
+                      role="switch"
                       className={`toggle${v.is_active ? ' on' : ''}`}
                       disabled={toggling === v.id}
                       aria-checked={v.is_active}
+                      aria-label={`Toggle ${v.name} bookable`}
                       onClick={() => toggleBookable(v)}
                     />
                   </td>
                   <td>
                     <div className="row-act">
-                      <button title="Edit" onClick={() => openEditForm(v)}><Icon.Edit width={15} height={15} /></button>
-                      <button title="View"><Icon.Eye width={15} height={15} /></button>
+                      <button title="Edit" aria-label={`Edit ${v.name}`} onClick={() => openEditForm(v)}><Icon.Edit width={15} height={15} /></button>
+                      <button title="View" aria-label={`View ${v.name}`} onClick={() => navigate(`/venues/${v.id}`)}><Icon.Eye width={15} height={15} /></button>
                     </div>
                   </td>
                 </tr>
