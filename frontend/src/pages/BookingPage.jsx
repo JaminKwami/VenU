@@ -208,7 +208,7 @@ export default function BookingPage() {
               <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
               <div className="time-grid">
                 {HOURS.map(h => {
-                  const busy = overlaps(taken, h, 1);
+                  const busy = overlaps(taken, h, duration);
                   return (
                     <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`} disabled={busy} onClick={() => setHour(h)}>
                       {pad(h)}
