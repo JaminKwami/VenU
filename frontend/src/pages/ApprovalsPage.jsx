@@ -20,7 +20,17 @@ export default function ApprovalsPage() {
   const [reason, setReason] = useState('');
   const [acting, setActing] = useState(false);
   const [error, setError] = useState('');
+  const [checked, setChecked] = useState(new Set());
+  const [bulkActing, setBulkActing] = useState(false);
   const revealRef = useReveal([bookings != null]);
+
+  const DECLINE_REASONS = [
+    'Venue reserved for maintenance',
+    'Insufficient notice period',
+    'Outside operating hours',
+    'Double booked',
+    'Incomplete request details',
+  ];
 
   useEffect(() => {
     api.get('/bookings/').then(r => {
@@ -74,6 +84,43 @@ export default function ApprovalsPage() {
     }
   }
 
+  async function bulkApprove() {
+    if (!checked.size) return;
+    setBulkActing(true);
+    setError('');
+    const ids = [...checked];
+    try {
+      const results = await Promise.allSettled(ids.map(id => api.patch(`/bookings/${id}/approve/`)));
+      const updated = {};
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') updated[ids[i]] = r.value.data;
+      });
+      const failed = results.filter(r => r.status === 'rejected').length;
+      setBookings(prev => prev.map(b => updated[b.id]
+        ? { ...b, status: updated[b.id].status, decided_at: updated[b.id].decided_at }
+        : b));
+      setChecked(new Set());
+      if (failed) setError(`${failed} booking${failed > 1 ? 's' : ''} could not be approved.`);
+    } finally {
+      setBulkActing(false);
+    }
+  }
+
+  function toggleCheck(id, e) {
+    e.stopPropagation();
+    setChecked(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllPending() {
+    const pendingIds = visible.filter(b => b.status === 'PENDING').map(b => b.id);
+    const allChecked = pendingIds.every(id => checked.has(id));
+    setChecked(allChecked ? new Set() : new Set(pendingIds));
+  }
+
   const loading = bookings == null;
   const fill = sel?.attendee_count ? Math.round((sel.attendee_count / sel.venue.capacity) * 100) : null;
 
@@ -105,6 +152,23 @@ export default function ApprovalsPage() {
 
       <div className="ap-grid reveal">
         <div className="card req-list">
+          {!loading && filter !== 'Decided' && pending.length > 0 && (
+            <div className="bulk-bar">
+              <label className="bulk-sel-all" title="Select all pending">
+                <input
+                  type="checkbox"
+                  checked={pending.every(b => checked.has(b.id))}
+                  onChange={toggleAllPending}
+                />
+                <span>{checked.size > 0 ? `${checked.size} selected` : 'Select all'}</span>
+              </label>
+              {checked.size > 0 && (
+                <button className="btn btn-success btn-sm" disabled={bulkActing} onClick={bulkApprove}>
+                  {bulkActing ? '…' : `Approve ${checked.size}`}
+                </button>
+              )}
+            </div>
+          )}
           {loading && [1, 2, 3].map(i => (
             <div key={i} className="req"><div className="skeleton" style={{ width: 38, height: 38, borderRadius: '50%' }} /><div style={{ flex: 1 }}><div className="skeleton" style={{ height: 14, width: '50%', marginBottom: 6 }} /><div className="skeleton" style={{ height: 12, width: '70%' }} /></div></div>
           ))}
@@ -124,6 +188,16 @@ export default function ApprovalsPage() {
                 className={`req${sel?.id === b.id ? ' sel' : ''}${decided && filter !== 'Decided' ? ' dim' : ''}`}
                 onClick={() => { setSelId(b.id); setDeclining(false); setError(''); }}
               >
+                {!decided && (
+                  <input
+                    type="checkbox"
+                    className="req-check"
+                    checked={checked.has(b.id)}
+                    onChange={e => toggleCheck(b.id, e)}
+                    onClick={e => e.stopPropagation()}
+                    aria-label={`Select booking for ${b.venue.name}`}
+                  />
+                )}
                 <span className="avatar">{initials(b.user.full_name || b.user.email)}</span>
                 <div className="rinfo">
                   <div className="rtitle">{b.purpose || b.venue.name}</div>
@@ -180,8 +254,29 @@ export default function ApprovalsPage() {
               {sel.status === 'PENDING' && declining && (
                 <div className="stack" style={{ gap: '.6rem', marginTop: '1rem' }}>
                   <div className="field">
-                    <label>Reason (shown to the requester)</label>
-                    <input className="input" autoFocus maxLength={500} placeholder="e.g. Venue reserved for maintenance" value={reason} onChange={e => setReason(e.target.value)} />
+                    <label htmlFor="decline-reason">Reason (shown to the requester)</label>
+                    <div className="decline-chips">
+                      {DECLINE_REASONS.map(r => (
+                        <button
+                          key={r}
+                          type="button"
+                          className={`chip${reason === r ? ' active' : ''}`}
+                          style={{ fontSize: '.76rem' }}
+                          onClick={() => setReason(prev => prev === r ? '' : r)}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      id="decline-reason"
+                      className="input"
+                      autoFocus
+                      maxLength={500}
+                      placeholder="Or type a custom reason…"
+                      value={reason}
+                      onChange={e => setReason(e.target.value)}
+                    />
                   </div>
                   <div className="row" style={{ gap: '.6rem' }}>
                     <button className="btn btn-ghost" style={{ flex: 1 }} disabled={acting} onClick={() => { setDeclining(false); setReason(''); }}>Cancel</button>

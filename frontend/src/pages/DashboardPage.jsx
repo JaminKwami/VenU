@@ -124,6 +124,13 @@ export default function DashboardPage() {
       .sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time));
   }, [bookings, histStatus, histQuery]);
 
+  const todayBookings = useMemo(
+    () => (bookings || [])
+      .filter(b => b.date === today && b.status === 'APPROVED')
+      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    [bookings, today],
+  );
+
   const [cancelling, setCancelling] = useState(null);
 
   async function cancelBooking(b) {
@@ -357,7 +364,29 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="card reveal" data-d="2">
+          {isAdmin && (
+            <div className="card reveal" data-d="2">
+              <div className="card-head"><h3>Today's schedule</h3><span className="label">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span></div>
+              {loading && [1, 2, 3].map(i => (
+                <div key={i} className="sched-row"><div className="skeleton" style={{ width: '100%', height: 13 }} /></div>
+              ))}
+              {!loading && todayBookings.length === 0 && (
+                <div className="empty" style={{ padding: '1.5rem 1rem' }}><span>No bookings scheduled today.</span></div>
+              )}
+              {!loading && todayBookings.map(b => (
+                <div className="sched-row" key={b.id}>
+                  <span className="sched-time">{hm(b.start_time)}</span>
+                  <span className="sched-bar" />
+                  <div className="sched-info">
+                    <div className="sched-venue">{b.venue.name}</div>
+                    <div className="sched-who">{b.user?.full_name || b.user?.email} · {hm(b.start_time)}–{hm(b.end_time)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="card reveal" data-d="3">
             <div className="card-head"><h3>Recent activity</h3></div>
             <div className="activity">
               {loading && [1, 2, 3].map(i => (
