@@ -10,11 +10,15 @@ class BookingSerializer(serializers.ModelSerializer):
     Full representation — used for list/retrieve responses.
     Nested user and venue are read-only so the frontend gets human-readable
     data without extra requests.
+
+    check_in_token is only returned to the booking's owner (not leaked to
+    admins listing other users' bookings).
     """
 
     user = UserSerializer(read_only=True)
     venue = VenueSerializer(read_only=True)
     decided_by = UserSerializer(read_only=True)
+    check_in_token = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -28,9 +32,14 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'status', 'rejection_reason', 'series_id',
-            'check_in_token', 'checked_in_at',
-            'decided_by', 'decided_at', 'created_at', 'updated_at',
+            'checked_in_at', 'decided_by', 'decided_at', 'created_at', 'updated_at',
         ]
+
+    def get_check_in_token(self, obj):
+        request = self.context.get('request')
+        if request and request.user == obj.user:
+            return str(obj.check_in_token)
+        return None
 
 
 class BookingCreateSerializer(serializers.ModelSerializer):

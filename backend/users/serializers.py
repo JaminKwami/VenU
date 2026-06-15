@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role']
+        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'is_active', 'date_joined']
         read_only_fields = fields
 
     def get_full_name(self, obj):
@@ -32,6 +32,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Admin-only: update a user's role or active status."""
+
+    class Meta:
+        model = User
+        fields = ['role', 'is_active']
+
+    def validate_role(self, value):
+        valid = [r.value for r in UserRole]
+        if value not in valid:
+            raise serializers.ValidationError(f'Role must be one of: {", ".join(valid)}')
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):

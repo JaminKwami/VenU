@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -54,7 +55,7 @@ class BookingListCreateView(APIView):
                 Q(purpose__icontains=q) | Q(venue__name__icontains=q) | Q(department__icontains=q)
             )
 
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
@@ -96,7 +97,7 @@ class BookingListCreateView(APIView):
                 )
             except ValidationError as exc:
                 return Response({'detail': exc.message}, status=status.HTTP_409_CONFLICT)
-            payload = BookingSerializer(created[0]).data
+            payload = BookingSerializer(created[0], context={'request': request}).data
             payload['series_count'] = len(created)
             payload['skipped_dates'] = [d.isoformat() for d in skipped]
             return Response(payload, status=status.HTTP_201_CREATED)
@@ -112,8 +113,13 @@ class BookingListCreateView(APIView):
             )
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_409_CONFLICT)
+        except IntegrityError:
+            return Response(
+                {'detail': 'This slot was just taken by another booking. Please choose a different time.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
+        return Response(BookingSerializer(booking, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class BookingDetailView(APIView):
@@ -134,7 +140,7 @@ class BookingDetailView(APIView):
         if booking is None:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         self.check_object_permissions(request, booking)
-        return Response(BookingSerializer(booking).data)
+        return Response(BookingSerializer(booking, context={'request': request}).data)
 
 
 class BookingApproveView(APIView):
@@ -151,6 +157,11 @@ class BookingApproveView(APIView):
             booking = services.approve_booking(booking, decided_by=request.user)
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_409_CONFLICT)
+        except IntegrityError:
+            return Response(
+                {'detail': 'A conflicting booking was approved first. Please review before retrying.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         return Response(BookingStatusSerializer(booking).data)
 
@@ -233,6 +244,12 @@ class BookingAvailabilityView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if (date_to - date_from).days > 31:
+            return Response(
+                {'detail': 'Date range cannot exceed 31 days.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         qs = (
             Booking.objects
             .filter(
@@ -290,7 +307,7 @@ class BookingCheckInView(APIView):
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(BookingSerializer(booking).data)
+        return Response(BookingSerializer(booking, context={'request': request}).data)
 
 
 class KioskLookupView(APIView):
@@ -304,6 +321,7 @@ class KioskLookupView(APIView):
     on a kiosk that is physically secured at the venue entrance).
     """
     permission_classes = [AllowAny]
+    throttle_scope = 'kiosk'
 
     _SAFE_FIELDS = (
         'id', 'date', 'start_time', 'end_time', 'status',

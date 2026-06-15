@@ -126,9 +126,12 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'login': '10/min',          # brute-force protection
+        'login': '10/min',
         'token_refresh': '30/min',
+        'kiosk': '60/min',
     },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 100,
 }
 
 SIMPLE_JWT = {
@@ -168,9 +171,24 @@ AUTH_PASSWORD_VALIDATORS = [
 # INTERNATIONALISATION
 # ------------------------------------------------------------------
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = config('TIME_ZONE', default='Africa/Johannesburg')
 USE_I18N = True
 USE_TZ = True
+
+
+# ------------------------------------------------------------------
+# EMAIL  (H1)
+# ------------------------------------------------------------------
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@venu.local')
 
 
 # ------------------------------------------------------------------

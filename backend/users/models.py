@@ -3,9 +3,10 @@ from django.db import models
 
 
 class UserRole(models.TextChoices):
-    ADMIN = 'ADMIN', 'Admin'
-    STAFF = 'STAFF', 'Staff'
-    STUDENT = 'STUDENT', 'Student'
+    ADMIN        = 'ADMIN',        'Admin'
+    RECEPTIONIST = 'RECEPTIONIST', 'Receptionist'
+    STAFF        = 'STAFF',        'Staff'
+    STUDENT      = 'STUDENT',      'Student'
 
 
 class UserManager(BaseUserManager):
@@ -45,7 +46,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     role = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=UserRole.choices,
         default=UserRole.STUDENT,
     )
@@ -78,7 +79,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_staff_member(self):
-        return self.role == UserRole.STAFF
+        return self.role in (UserRole.ADMIN, UserRole.RECEPTIONIST)
 
     @property
     def is_student(self):

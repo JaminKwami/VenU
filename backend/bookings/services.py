@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from .models import AutoApprovalRule, Booking, BookingStatus, TermDate, WaitlistEntry
@@ -112,6 +112,7 @@ def _is_term_skip(date):
 
 # ── Create bookings ───────────────────────────────────────────────────────────
 
+@transaction.atomic
 def create_booking(user, venue, date, start_time, end_time, purpose='',
                    attendee_count=None, department='', notes='', series_id=None):
     """
@@ -120,6 +121,10 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
 
     If an auto-approval rule matches, the booking is immediately approved.
     """
+    # Lock the venue row so concurrent requests for the same venue/slot are serialised.
+    from venues.models import Venue as _Venue
+    venue = _Venue.objects.select_for_update().get(pk=venue.pk)
+
     if date < timezone.localdate():
         raise ValidationError('Bookings cannot be made for past dates.')
 
@@ -288,8 +293,11 @@ def auto_release_no_shows(grace_minutes=15, dry_run=False):
 
 # ── Approval workflow ─────────────────────────────────────────────────────────
 
+@transaction.atomic
 def approve_booking(booking, decided_by=None):
     """Approve a pending booking, stamping who decided and when."""
+    # Re-fetch with a row lock so concurrent approvals of the same slot are serialised.
+    booking = Booking.objects.select_for_update().get(pk=booking.pk)
     if booking.status != BookingStatus.PENDING:
         raise ValidationError('Only pending bookings can be approved.')
 
