@@ -154,7 +154,7 @@
 .ap-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.6rem; }
 .ap-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; }
 .req-list { display: flex; flex-direction: column; }
-.req { display: flex; gap: 1rem; padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .2s var(--ease); position: relative; }
+.req { display: flex; gap: 1rem; padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .2s var(--ease); position: relative; width: 100%; text-align: left; font-size: inherit; background: var(--surface); border-left: none; border-right: none; border-top: none; }
 .req:last-child { border-bottom: none; }
 .req:hover { background: var(--surface-2); }
 .req.sel { background: var(--accent-soft); }
@@ -286,6 +286,21 @@
   .stp .lb { display: none; }   /* numbers only on tiny screens */
   .bi-date { display: none; }   /* hide date tile on smallest screens */
 }
+
+/* ── Manage users ── */
+.role-sel { font-family: var(--font-mono); font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: .28em .7em; border-radius: var(--r-xs); border: 1px solid transparent; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23999' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .5em center; padding-right: 1.6em; cursor: pointer; }
+select.role-sel { width: auto; }
+span.role-sel { cursor: default; padding-right: .7em; }
+.role-sel.admin        { color: var(--accent-ink); background-color: var(--accent-soft); border-color: var(--accent-line); }
+.role-sel.receptionist { color: var(--warn); background-color: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.role-sel.staff,
+.role-sel.student      { color: var(--ink-65); background-color: var(--canvas-2); border-color: var(--line-2); }
+.role-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .2rem; }
+.role-tile { display: flex; flex-direction: column; gap: .3rem; padding: .8rem .9rem; border-radius: var(--r-sm); border: 1px solid var(--line-2); background: var(--surface); text-align: left; cursor: pointer; transition: all .2s var(--ease); font-family: inherit; color: inherit; }
+.role-tile:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.role-tile.on { border-color: var(--accent); background: var(--accent-soft); }
+.role-tile .rt-name { font-family: var(--font-mono); font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-ink); }
+.role-tile .rt-desc { font-size: .78rem; color: var(--ink-65); line-height: 1.4; }
 
 /* ── Admin settings ── */
 .settings-inline-form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }

@@ -61,7 +61,7 @@ export default function DashboardPage() {
   const revealRef = useReveal([bookings != null]);
 
   useEffect(() => {
-    api.get('/bookings/').then(r => setBookings(r.data)).catch(() => setBookings([]));
+    api.get('/bookings/').then(r => setBookings(r.data.results ?? r.data)).catch(() => setBookings([]));
   }, []);
 
   const today = todayISO();
@@ -136,17 +136,17 @@ export default function DashboardPage() {
         <h1>{greeting()}, {firstName}.</h1>
         <p>
           {loading ? 'Loading your bookings…' : (
-            <>You have <b style={{ color: 'var(--ink)' }}>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up and <b style={{ color: 'var(--warn)' }}>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> awaiting approval.</>
+            <>You have <b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up and <b>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> awaiting approval.</>
           )}
         </p>
       </div>
 
       <div className="stat-ribbon reveal">
-        <div className={`stat-seg${upcomingCount > 0 ? ' accent' : ''}`}>
+        <div className="stat-seg">
           <div className="stat-seg-n">{loading ? '—' : upcomingCount}</div>
           <div className="stat-seg-label">Upcoming</div>
         </div>
-        <div className={`stat-seg${pendingCount > 0 ? ' warn' : ''}`}>
+        <div className="stat-seg">
           <div className="stat-seg-n">{loading ? '—' : pendingCount}</div>
           <div className="stat-seg-label">Pending</div>
         </div>
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                   <div className="wl">{d.label}</div>
                   <div className="wn">{d.n}</div>
                   {(d.today || bookedDays[d.iso]) && (
-                    <div className="wdot" style={{ background: bookedDays[d.iso] || 'var(--accent)' }} />
+                    <div className="wdot" style={{ background: 'var(--ink-28)' }} />
                   )}
                 </div>
               ))}

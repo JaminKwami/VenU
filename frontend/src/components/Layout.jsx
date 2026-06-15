@@ -6,7 +6,7 @@ import { Icon } from './icons';
 import AppearanceControl from './AppearanceControl';
 import { TopbarProvider, useTopbarState } from './TopbarContext';
 
-const ROLE_LABEL = { ADMIN: 'Admin', STAFF: 'Staff', STUDENT: 'Student' };
+const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
 
 function initials(user) {
   const name = user?.full_name || user?.email || '?';
@@ -32,19 +32,27 @@ export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(null);
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
+  const isSuperAdmin = user?.role === 'ADMIN';
 
   // Pending-approvals badge for admins.
   useEffect(() => {
     if (!isAdmin) return;
     api.get('/bookings/')
-      .then(r => setPendingCount(r.data.filter(b => b.status === 'PENDING').length))
+      .then(r => setPendingCount((r.data.results ?? r.data).filter(b => b.status === 'PENDING').length))
       .catch(() => {});
   }, [isAdmin, location.pathname]);
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  function handleLogout() { logout(); navigate('/login'); }
+  async function handleLogout() {
+    const { refreshToken } = useAuthStore.getState();
+    if (refreshToken) {
+      try { await api.post('/auth/logout/', { refresh: refreshToken }); } catch (_) { /* ignore */ }
+    }
+    logout();
+    navigate('/login');
+  }
 
   const navLink = (to, label, Ic, badge = null) => (
     <NavLink key={to} to={to} className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}>
@@ -70,8 +78,9 @@ export default function Layout() {
           <>
             <div className="sb-section">Administration</div>
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
-            {navLink('/admin/venues', 'Manage venues', Icon.Manage)}
-            {navLink('/admin/settings', 'Settings', Icon.Settings)}
+            {isSuperAdmin && navLink('/admin/venues', 'Manage venues', Icon.Manage)}
+            {isSuperAdmin && navLink('/admin/users', 'Users', Icon.Users)}
+            {isSuperAdmin && navLink('/admin/settings', 'Settings', Icon.Settings)}
           </>
         )}
       </nav>

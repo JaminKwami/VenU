@@ -9,6 +9,7 @@ import VenueCalendarPage from './pages/VenueCalendarPage';
 import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
+import ManageUsersPage from './pages/ManageUsersPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import CheckInKioskPage from './pages/CheckInKioskPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -22,8 +23,14 @@ function PrivateRoute() {
 function AdminRoute() {
   const { user, accessToken } = useAuthStore();
   if (!accessToken) return <Navigate to='/login' replace />;
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
-  return isAdmin ? <Outlet /> : <Navigate to='/dashboard' replace />;
+  const canAccess = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
+  return canAccess ? <Outlet /> : <Navigate to='/dashboard' replace />;
+}
+
+function SuperAdminRoute() {
+  const { user, accessToken } = useAuthStore();
+  if (!accessToken) return <Navigate to='/login' replace />;
+  return user?.role === 'ADMIN' ? <Outlet /> : <Navigate to='/dashboard' replace />;
 }
 
 export default function App() {
@@ -43,10 +50,16 @@ export default function App() {
             <Route path='/venues/:id/calendar' element={<VenueCalendarPage />} />
             <Route path='/book'      element={<BookingPage />} />
 
+            {/* ADMIN + RECEPTIONIST */}
             <Route element={<AdminRoute />}>
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
-              <Route path='/admin/venues'    element={<ManageVenuesPage />} />
-              <Route path='/admin/settings'  element={<AdminSettingsPage />} />
+            </Route>
+
+            {/* ADMIN only */}
+            <Route element={<SuperAdminRoute />}>
+              <Route path='/admin/venues'   element={<ManageVenuesPage />} />
+              <Route path='/admin/users'    element={<ManageUsersPage />} />
+              <Route path='/admin/settings' element={<AdminSettingsPage />} />
             </Route>
 
             <Route path='*' element={<NotFoundPage />} />

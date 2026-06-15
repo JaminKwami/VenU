@@ -49,8 +49,9 @@ export default function BookingPage() {
 
   useEffect(() => {
     api.get('/venues/').then(r => {
-      setVenues(r.data);
-      if (!venueId && r.data.length) setVenueId(r.data[0].id);
+      const data = r.data.results ?? r.data;
+      setVenues(data);
+      if (!venueId && data.length) setVenueId(data[0].id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

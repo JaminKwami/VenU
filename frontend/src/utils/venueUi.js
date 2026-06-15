@@ -59,8 +59,8 @@ export function hoursBetween(start, end) {
 }
 
 export const STATUS_BADGE = {
-  PENDING: ['badge-pending', 'Pending'],
-  APPROVED: ['badge-approved', 'Approved'],
-  REJECTED: ['badge-rejected', 'Declined'],
+  PENDING:   ['badge-pending',   'Waiting for approval'],
+  APPROVED:  ['badge-approved',  'Confirmed'],
+  REJECTED:  ['badge-rejected',  'Declined'],
   CANCELLED: ['badge-cancelled', 'Cancelled'],
 };

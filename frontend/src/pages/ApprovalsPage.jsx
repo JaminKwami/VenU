@@ -24,8 +24,9 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     api.get('/bookings/').then(r => {
-      setBookings(r.data);
-      const firstPending = r.data.find(b => b.status === 'PENDING');
+      const data = r.data.results ?? r.data;
+      setBookings(data);
+      const firstPending = data.find(b => b.status === 'PENDING');
       if (firstPending) setSelId(firstPending.id);
     }).catch(() => setBookings([]));
   }, []);
@@ -83,15 +84,15 @@ export default function ApprovalsPage() {
         <h1>Approvals</h1>
         <p>
           Review and action booking requests across all spaces.{' '}
-          {!loading && <b style={{ color: 'var(--warn)' }}>{pending.length} pending</b>}{!loading && ` need${pending.length === 1 ? 's' : ''} your attention.`}
+          {!loading && <b>{pending.length} pending</b>}{!loading && ` need${pending.length === 1 ? 's' : ''} your attention.`}
         </p>
       </div>
 
       <div className="ap-stats reveal">
-        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--warn)' }} /><div className="stat-label">Pending</div><div className="stat-val">{loading ? '—' : pending.length}</div></div>
-        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--success)' }} /><div className="stat-label">Approved today</div><div className="stat-val">{loading ? '—' : approvedToday}</div></div>
-        <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--danger)' }} /><div className="stat-label">Declined today</div><div className="stat-val">{loading ? '—' : declinedToday}</div></div>
-        <div className="card stat-card"><span className="stat-accent" /><div className="stat-label">Avg response</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{avgResponse || '—'}</div></div>
+        <div className="card stat-card"><div className="stat-label">Pending</div><div className="stat-val">{loading ? '—' : pending.length}</div></div>
+        <div className="card stat-card"><div className="stat-label">Approved today</div><div className="stat-val">{loading ? '—' : approvedToday}</div></div>
+        <div className="card stat-card"><div className="stat-label">Declined today</div><div className="stat-val">{loading ? '—' : declinedToday}</div></div>
+        <div className="card stat-card"><div className="stat-label">Avg response</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{avgResponse || '—'}</div></div>
       </div>
 
       <div className="filters reveal">
@@ -117,7 +118,8 @@ export default function ApprovalsPage() {
             const [cls, label] = STATUS_BADGE[b.status];
             const decided = b.status !== 'PENDING';
             return (
-              <div
+              <button
+                type="button"
                 key={b.id}
                 className={`req${sel?.id === b.id ? ' sel' : ''}${decided && filter !== 'Decided' ? ' dim' : ''}`}
                 onClick={() => { setSelId(b.id); setDeclining(false); setError(''); }}
@@ -137,7 +139,7 @@ export default function ApprovalsPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

@@ -36,7 +36,7 @@ export default function VenueDetailPage() {
 
   useEffect(() => {
     api.get(`/venues/${id}/`).then(r => setVenue(r.data)).catch(() => setMissing(true));
-    api.get('/bookings/').then(r => setMyBookings(r.data)).catch(() => {});
+    api.get('/bookings/').then(r => setMyBookings(r.data.results ?? r.data)).catch(() => {});
   }, [id]);
 
   useEffect(() => {

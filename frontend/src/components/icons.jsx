@@ -91,4 +91,7 @@ export const Icon = {
   NoShow: (p) => (
     <svg {...base} strokeWidth={1.8} {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/><path d="M7 7l10 10" strokeWidth={2}/></svg>
   ),
+  Key: (p) => (
+    <svg {...base} {...p}><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.5 9.5M15.5 8.5l2 2M18 5l2 2"/></svg>
+  ),
 };

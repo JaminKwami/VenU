@@ -204,9 +204,9 @@ export default function AdminSettingsPage() {
   const revealRef = useReveal([rules != null, terms != null]);
 
   useEffect(() => {
-    api.get('/bookings/approval-rules/').then(r => setRules(r.data)).catch(() => setRules([]));
-    api.get('/bookings/term-dates/').then(r => setTerms(r.data)).catch(() => setTerms([]));
-    api.get('/venues/').then(r => setVenues(r.data)).catch(() => {});
+    api.get('/bookings/approval-rules/').then(r => setRules(r.data.results ?? r.data)).catch(() => setRules([]));
+    api.get('/bookings/term-dates/').then(r => setTerms(r.data.results ?? r.data)).catch(() => setTerms([]));
+    api.get('/venues/').then(r => setVenues(r.data.results ?? r.data)).catch(() => {});
     api.get('/bookings/no-shows/').then(r => setNoShows(r.data.no_shows)).catch(() => setNoShows([]));
   }, []);
 

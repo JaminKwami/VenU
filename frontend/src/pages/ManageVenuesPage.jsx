@@ -24,7 +24,7 @@ export default function ManageVenuesPage() {
   const revealRef = useReveal([venues != null, search, building, status]);
 
   useEffect(() => {
-    api.get('/venues/').then(r => setVenues(r.data)).catch(() => setVenues([]));
+    api.get('/venues/').then(r => setVenues(r.data.results ?? r.data)).catch(() => setVenues([]));
     api.get('/venues/stats/').then(r => {
       const map = {};
       r.data.forEach(s => { map[s.venue_id] = s; });

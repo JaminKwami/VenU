@@ -28,7 +28,7 @@ export default function VenuesPage() {
   const revealRef = useReveal([venues != null, search, building, capRange, type]);
 
   useEffect(() => {
-    api.get('/venues/').then(r => setVenues(r.data)).catch(() => setVenues([]));
+    api.get('/venues/').then(r => setVenues(r.data.results ?? r.data)).catch(() => setVenues([]));
   }, []);
 
   const buildings = useMemo(
