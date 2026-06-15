@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -44,6 +44,7 @@ async function downloadIcs() {
 
 export default function DashboardPage() {
   usePageTitle('Dashboard');
+  const navigate = useNavigate();
   useTopbar('Dashboard', (
     <>
       <button className="btn btn-outline btn-sm" onClick={() => downloadIcs().catch(() => {})}>
@@ -122,6 +123,31 @@ export default function DashboardPage() {
           (b.department || '').toLowerCase().includes(q)))
       .sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time));
   }, [bookings, histStatus, histQuery]);
+
+  const [cancelling, setCancelling] = useState(null);
+
+  async function cancelBooking(b) {
+    if (!confirm(`Cancel your booking of ${b.venue.name} on ${b.date}?`)) return;
+    setCancelling(b.id);
+    try {
+      await api.patch(`/bookings/${b.id}/cancel/`);
+      setBookings(prev => prev.map(x => x.id === b.id ? { ...x, status: 'CANCELLED' } : x));
+    } catch {
+      alert('Cancellation failed — please try again.');
+    } finally {
+      setCancelling(null);
+    }
+  }
+
+  function tryAgain(b) {
+    navigate('/book', {
+      state: {
+        venueId: b.venue.id,
+        venueName: b.venue.name,
+        openAtStep: 2,
+      },
+    });
+  }
 
   const loading = bookings == null;
   const firstName = (user?.full_name || user?.email || '').split(/[\s@]/)[0];
@@ -207,6 +233,16 @@ export default function DashboardPage() {
                           {b.checked_in_at ? 'Checked in' : 'Check in'}
                         </button>
                       )}
+                      {!b.checked_in_at && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ fontSize: '.75rem', padding: '.3em .7em' }}
+                          disabled={cancelling === b.id}
+                          onClick={() => cancelBooking(b)}
+                        >
+                          {cancelling === b.id ? '…' : 'Cancel'}
+                        </button>
+                      )}
                       <span className={`badge ${cls}`}><span className="dot" />{label}</span>
                     </div>
                   </div>
@@ -259,14 +295,28 @@ export default function DashboardPage() {
               {!loading && history.slice(0, 8).map(b => {
                 const chip = dateChip(b.date);
                 const [cls, label] = STATUS_BADGE[b.status];
+                const canCancel = ['PENDING', 'APPROVED'].includes(b.status) && b.date >= today;
+                const canRetry = b.status === 'REJECTED';
                 return (
                   <div className="booking-item" key={b.id}>
                     <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
                     <div className="bi-main">
                       <div className="t">{b.purpose || b.venue.name}</div>
-                      <div className="s">{b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)}{b.rejection_reason ? <> · <span style={{ color: 'var(--danger)' }}>{b.rejection_reason}</span></> : null}</div>
+                      <div className="s">{b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)}{b.rejection_reason ? <> · <span style={{ color: 'var(--danger)', fontSize: '.8rem' }}>{b.rejection_reason}</span></> : null}</div>
                     </div>
-                    <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexShrink: 0 }}>
+                      {canRetry && (
+                        <button className="btn btn-outline btn-sm" style={{ fontSize: '.75rem', padding: '.3em .7em' }} onClick={() => tryAgain(b)}>
+                          Try again →
+                        </button>
+                      )}
+                      {canCancel && (
+                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.75rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => cancelBooking(b)}>
+                          {cancelling === b.id ? '…' : 'Cancel'}
+                        </button>
+                      )}
+                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                    </div>
                   </div>
                 );
               })}

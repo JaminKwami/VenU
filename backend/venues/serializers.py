@@ -9,7 +9,7 @@ class VenueSerializer(serializers.ModelSerializer):
         model = Venue
         fields = [
             'id', 'name', 'location', 'building', 'venue_type', 'capacity',
-            'amenities', 'min_notice_hours', 'description', 'is_active',
+            'amenities', 'min_notice_hours', 'description', 'is_active', 'access',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

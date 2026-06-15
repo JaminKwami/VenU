@@ -110,6 +110,21 @@ def _is_term_skip(date):
     ).exists()
 
 
+# ── Venue access check ────────────────────────────────────────────────────────
+
+def _check_venue_access(user, venue):
+    """Raise ValidationError if the user's role is not allowed to book this venue."""
+    from users.models import UserRole
+    role = getattr(user, 'role', None)
+    access = getattr(venue, 'access', 'both')
+    if access == 'none':
+        raise ValidationError('This venue is not available for booking.')
+    if access == 'staff' and role not in (UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.STAFF):
+        raise ValidationError('This venue is restricted to staff members.')
+    if access == 'student' and role not in (UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.STUDENT):
+        raise ValidationError('This venue is restricted to students.')
+
+
 # ── Create bookings ───────────────────────────────────────────────────────────
 
 @transaction.atomic
@@ -124,6 +139,8 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
     # Lock the venue row so concurrent requests for the same venue/slot are serialised.
     from venues.models import Venue as _Venue
     venue = _Venue.objects.select_for_update().get(pk=venue.pk)
+
+    _check_venue_access(user, venue)
 
     if date < timezone.localdate():
         raise ValidationError('Bookings cannot be made for past dates.')

@@ -22,6 +22,16 @@ class Venue(models.Model):
     min_notice_hours = models.PositiveIntegerField(default=0)
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
+    access = models.CharField(
+        max_length=20,
+        choices=[
+            ('both',    'Staff and students'),
+            ('staff',   'Staff only'),
+            ('student', 'Students only'),
+            ('none',    'Not bookable (hidden)'),
+        ],
+        default='both',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

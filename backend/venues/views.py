@@ -24,8 +24,17 @@ class VenueListCreateView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request):
-        venues = Venue.objects.filter(is_active=True)
-        serializer = VenueSerializer(venues, many=True)
+        from users.models import UserRole
+        qs = Venue.objects.filter(is_active=True).exclude(access='none')
+        role = getattr(request.user, 'role', None)
+        if role not in (UserRole.ADMIN, UserRole.RECEPTIONIST):
+            is_staff = role == UserRole.STAFF
+            is_student = role == UserRole.STUDENT
+            if is_staff:
+                qs = qs.exclude(access='student')
+            elif is_student:
+                qs = qs.exclude(access='staff')
+        serializer = VenueSerializer(qs, many=True)
         return Response(serializer.data)
 
     def post(self, request):
