@@ -122,7 +122,9 @@
 .vp { display: flex; gap: .9rem; align-items: center; padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; transition: all .3s var(--ease); text-align: left; }
 .vp:hover { border-color: var(--accent-line); }
 .vp.on { border-color: var(--accent); background: var(--accent-soft); }
-.vp .vpi { width: 46px; height: 46px; border-radius: var(--r-sm); flex-shrink: 0; }
+.vp .vpi { width: 46px; height: 46px; border-radius: var(--r-sm); flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; }
+.vpi-mono { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: .9rem; color: rgba(255,255,255,.9); letter-spacing: .02em; text-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.opt-label { font-family: var(--font-mono); font-size: .65rem; font-weight: 400; color: var(--ink-45); text-transform: none; letter-spacing: 0; margin-left: .3em; }
 .vp > div { min-width: 0; }
 .vp .vpn { font-weight: 600; font-size: .95rem; }
 .vp .vpm { font-family: var(--font-mono); font-size: .62rem; color: var(--ink-45); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }

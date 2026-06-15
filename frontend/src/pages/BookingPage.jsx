@@ -183,15 +183,20 @@ export default function BookingPage() {
               <h2 style={{ fontSize: '1.3rem', marginBottom: '.4rem' }}>Choose a space</h2>
               <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>Pick a venue, or browse the full catalogue first.</p>
               <div className="venue-pick">
-                {venues.slice(0, 6).map(v => (
-                  <button key={v.id} className={`vp${v.id === Number(venueId) ? ' on' : ''}`} onClick={() => { setVenueId(v.id); setHour(null); }}>
-                    <span className="vpi" style={{ background: venueGradient(v.id) }} />
-                    <div>
-                      <div className="vpn">{v.name}</div>
-                      <div className="vpm">{v.building || v.location} · {v.capacity} cap</div>
-                    </div>
-                  </button>
-                ))}
+                {venues.slice(0, 6).map(v => {
+                  const mono = v.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+                  return (
+                    <button key={v.id} className={`vp${v.id === Number(venueId) ? ' on' : ''}`} onClick={() => { setVenueId(v.id); setHour(null); }}>
+                      <span className="vpi" style={{ background: venueGradient(v.id) }}>
+                        <span className="vpi-mono">{mono}</span>
+                      </span>
+                      <div>
+                        <div className="vpn">{v.name}</div>
+                        <div className="vpm">{v.building || v.location} · {v.capacity} cap</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               <Link className="btn btn-outline" to="/venues" style={{ marginTop: '1rem' }}>Browse all venues</Link>
             </div>
@@ -283,16 +288,16 @@ export default function BookingPage() {
               <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>Help the approver understand your request.</p>
               <div className="stack" style={{ gap: '1rem' }}>
                 <div className="field">
-                  <label htmlFor="book-purpose">Purpose / event name</label>
+                  <label htmlFor="book-purpose">Purpose / event name <span className="opt-label">(optional)</span></label>
                   <input id="book-purpose" className="input" placeholder="e.g. Robotics Showcase 2026" value={purpose} onChange={e => setPurpose(e.target.value)} />
                 </div>
                 <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
                   <div className="field" style={{ flex: 1, minWidth: 160 }}>
-                    <label htmlFor="book-attendees">Expected attendees</label>
+                    <label htmlFor="book-attendees">Expected attendees <span className="opt-label">(optional)</span></label>
                     <input id="book-attendees" className="input" type="number" min="1" max={venue?.capacity} placeholder={venue ? `Up to ${venue.capacity}` : ''} value={attendees} onChange={e => setAttendees(e.target.value)} />
                   </div>
                   <div className="field" style={{ flex: 1, minWidth: 160 }}>
-                    <label htmlFor="book-dept">Department</label>
+                    <label htmlFor="book-dept">Department <span className="opt-label">(optional)</span></label>
                     <input id="book-dept" className="input" placeholder="e.g. Engineering" value={department} onChange={e => setDepartment(e.target.value)} />
                   </div>
                 </div>
@@ -341,20 +346,22 @@ export default function BookingPage() {
             <div className="step-panel active">
               <div className="success-wrap">
                 <div className="success-ring"><Icon.Check /></div>
-                <h2 style={{ fontSize: '1.6rem' }}>Request submitted!</h2>
-                <p className="muted" style={{ maxWidth: '42ch', margin: '.6rem auto 0' }}>
+                <h2 style={{ fontSize: '1.6rem' }}>You're in the queue.</h2>
+                <p className="muted" style={{ maxWidth: '44ch', margin: '.6rem auto 0' }}>
                   {created.series_count > 1
-                    ? <>Your <b style={{ color: 'var(--ink)' }}>{created.series_count} recurring requests</b> for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> are in the approvals queue.</>
-                    : <>Your request for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> is in the approvals queue — the outcome will appear on your dashboard.</>}
-                  {' '}Reference <span className="mono" style={{ color: 'var(--accent-ink)' }}>#VENU-{created.id}</span>.
+                    ? <><b style={{ color: 'var(--ink)' }}>{created.series_count} recurring requests</b> for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> have been sent to facilities for review.</>
+                    : <>Your request for <b style={{ color: 'var(--ink)' }}>{created.venue.name}</b> has been sent to facilities for review. You'll be notified once a decision is made.</>}
                 </p>
+                <div style={{ display: 'inline-block', marginTop: '1rem', padding: '.5rem 1rem', borderRadius: 'var(--r-md)', background: 'var(--canvas-2)', border: '1px solid var(--line)', fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-45)', letterSpacing: '.04em' }}>
+                  REF #{String(created.id).padStart(4, '0')}
+                </div>
                 {created.skipped_dates?.length > 0 && (
-                  <p className="muted" style={{ maxWidth: '46ch', margin: '.8rem auto 0', fontSize: '.85rem' }}>
-                    {created.skipped_dates.length} {created.skipped_dates.length === 1 ? 'date was' : 'dates were'} skipped because the venue is already booked: {created.skipped_dates.join(', ')}.
+                  <p className="muted" style={{ maxWidth: '46ch', margin: '.8rem auto 0', fontSize: '.82rem' }}>
+                    {created.skipped_dates.length} {created.skipped_dates.length === 1 ? 'date was' : 'dates were'} skipped due to existing bookings: {created.skipped_dates.join(', ')}.
                   </p>
                 )}
                 <div className="row" style={{ gap: '.7rem', justifyContent: 'center', marginTop: '1.6rem' }}>
-                  <Link className="btn btn-primary" to="/dashboard">Go to dashboard</Link>
+                  <Link className="btn btn-primary" to="/dashboard">View on dashboard</Link>
                   <button className="btn btn-ghost" onClick={reset}>Book another</button>
                 </div>
               </div>

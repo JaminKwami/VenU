@@ -7,7 +7,7 @@ import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
 import { venueGradient, hm, prettyDate, todayISO } from '../utils/venueUi';
 
-const SLOT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
+const SLOT_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 
 function addDays(iso, n) {
   const d = new Date(iso + 'T00:00:00');
@@ -195,13 +195,13 @@ export default function VenueDetailPage() {
               Conflicts are checked before you submit — requests go to a facilities admin for approval.
             </p>
             <div className="field" style={{ marginBottom: '1rem' }}>
-              <label>Date</label>
-              <input className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setSlot(null); }} />
+              <label htmlFor="vd-date">Date</label>
+              <input id="vd-date" className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setSlot(null); }} />
             </div>
             <div className="field" style={{ marginBottom: '1rem' }}>
-              <label>Time slot</label>
+              <label htmlFor="vd-slot">Time slot</label>
               <div className="pill-times">
-                {SLOT_HOURS.slice(0, 6).map(h => {
+                {SLOT_HOURS.map(h => {
                   const busy = slotBusy(selectedTaken, h);
                   return (
                     <button

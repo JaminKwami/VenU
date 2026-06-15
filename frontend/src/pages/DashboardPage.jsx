@@ -46,12 +46,7 @@ export default function DashboardPage() {
   usePageTitle('Dashboard');
   const navigate = useNavigate();
   useTopbar('Dashboard', (
-    <>
-      <button className="btn btn-outline btn-sm" onClick={() => downloadIcs().catch(() => {})}>
-        <Icon.Calendar width={15} height={15} /> Export .ics
-      </button>
-      <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
-    </>
+    <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
   ));
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
@@ -280,6 +275,9 @@ export default function DashboardPage() {
             <div className="card-head" style={{ gap: '.8rem', flexWrap: 'wrap' }}>
               <h3>All bookings</h3>
               <div className="row" style={{ gap: '.5rem' }}>
+                <button className="btn btn-outline btn-sm" onClick={() => downloadIcs().catch(() => {})}>
+                  <Icon.Calendar width={14} height={14} /> Export .ics
+                </button>
                 <input
                   className="input" style={{ maxWidth: 180, padding: '.45rem .8rem', fontSize: '.85rem' }}
                   placeholder="Search…" value={histQuery} onChange={e => setHistQuery(e.target.value)}
