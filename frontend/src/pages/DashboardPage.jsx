@@ -163,8 +163,13 @@ export default function DashboardPage() {
         <span className="eyebrow">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         <h1>{greeting()}, {firstName}.</h1>
         <p>
-          {loading ? 'Loading your bookings…' : (
-            <>You have <b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up and <b>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> awaiting approval.</>
+          {loading ? 'Loading…' : isAdmin ? (
+            <>{pendingCount > 0
+              ? <><b>{pendingCount} booking {pendingCount === 1 ? 'request' : 'requests'}</b> {pendingCount === 1 ? 'needs' : 'need'} your approval today.</>
+              : <>Queue is clear — no pending requests. {upcomingCount > 0 && <><b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> scheduled.</>}</>
+            }</>
+          ) : (
+            <>You have <b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up{pendingCount > 0 ? <> and <b>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> awaiting approval</> : ''}.</>
           )}
         </p>
       </div>
@@ -195,6 +200,7 @@ export default function DashboardPage() {
 
       <div className="dash-grid">
         <div className="stack" style={{ gap: '1.4rem' }}>
+          {!isAdmin && <QuickBook />}
           <div className="card reveal">
             <div className="card-head">
               <h3>Upcoming bookings</h3>
@@ -411,5 +417,94 @@ export default function DashboardPage() {
       <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />
     )}
     </>
+  );
+}
+
+function QuickBook() {
+  const navigate = useNavigate();
+  const [venues, setVenues] = useState([]);
+  const [venueId, setVenueId] = useState(null);
+  const [hour, setHour] = useState(null);
+  const [taken, setTaken] = useState([]);
+  const today = todayISO();
+
+  useEffect(() => {
+    api.get('/venues/').then(r => {
+      const data = r.data.results ?? r.data;
+      setVenues(data.slice(0, 8));
+      if (data.length) setVenueId(data[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!venueId) return;
+    api.get('/bookings/availability/', { params: { venue: venueId, date: today } })
+      .then(r => setTaken(r.data.taken_slots || []))
+      .catch(() => setTaken([]));
+    setHour(null);
+  }, [venueId, today]);
+
+  const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+  const pad = h => `${String(h).padStart(2, '0')}:00`;
+
+  function isBusy(h) {
+    const s = pad(h);
+    const e = pad(h + 1);
+    return taken.some(t => hm(t.start_time) < e && hm(t.end_time) > s);
+  }
+
+  function go() {
+    if (!venueId || hour === null) return;
+    navigate('/book', { state: { venueId, date: today, hour } });
+  }
+
+  const selectedVenue = venues.find(v => v.id === venueId);
+
+  return (
+    <div className="card reveal" data-d="0">
+      <div className="card-head">
+        <h3>Quick book for today</h3>
+        <span className="label">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+      </div>
+      <div style={{ padding: '1rem 1.3rem 1.3rem' }}>
+        {venues.length > 0 && (
+          <div className="field" style={{ marginBottom: '.9rem' }}>
+            <label htmlFor="qb-venue">Space</label>
+            <select id="qb-venue" className="select" value={venueId || ''} onChange={e => setVenueId(Number(e.target.value))}>
+              {venues.map(v => <option key={v.id} value={v.id}>{v.name} · {v.capacity} cap</option>)}
+            </select>
+          </div>
+        )}
+        <span className="label" style={{ display: 'block', marginBottom: '.4rem' }}>Pick a start time</span>
+        <div className="time-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)', gap: '.35rem', marginBottom: '1rem' }}>
+          {HOURS.map(h => {
+            const busy = isBusy(h);
+            return (
+              <button
+                key={h}
+                className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`}
+                style={{ fontSize: '.72rem', padding: '.4em' }}
+                disabled={busy}
+                onClick={() => setHour(h)}
+              >
+                {pad(h)}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="btn btn-primary btn-block"
+          disabled={!venueId || hour === null}
+          onClick={go}
+        >
+          Continue to request <Icon.Arrow width={15} height={15} />
+        </button>
+        {selectedVenue && hour !== null && !isBusy(hour) && (
+          <p style={{ fontSize: '.78rem', color: 'var(--ink-45)', marginTop: '.6rem', textAlign: 'center' }}>
+            {selectedVenue.name} · {pad(hour)} – {pad(hour + 1)} · today
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
