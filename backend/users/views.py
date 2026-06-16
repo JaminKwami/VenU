@@ -8,7 +8,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.permissions import IsAdmin
-from .serializers import UserSerializer, RegisterSerializer, UserUpdateSerializer
+from .models import AllowedDomain, EnrollLink
+from .serializers import (
+    UserSerializer, RegisterSerializer, UserUpdateSerializer,
+    AllowedDomainSerializer, EnrollLinkSerializer,
+)
 
 User = get_user_model()
 
@@ -46,14 +50,60 @@ class MeView(APIView):
 class RegisterView(APIView):
     """
     POST /api/auth/register
-    Admin-only endpoint to create new user accounts.
+
+    Three paths:
+    1. Admin token in Authorization header → create any role (existing behaviour).
+    2. enroll_token in body → validate EnrollLink, self-register with link's default_role.
+    3. Email domain matches AllowedDomain → self-register with domain's default_role.
     """
-    permission_classes = [IsAdmin]
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        # ── Path 1: authenticated admin ──────────────────────────────
+        if request.user and request.user.is_authenticated and request.user.is_admin:
+            serializer = RegisterSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save()
+                return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Path 2: enroll token ─────────────────────────────────────
+        enroll_token = request.data.get('enroll_token')
+        enroll_link = None
+        if enroll_token:
+            try:
+                enroll_link = EnrollLink.objects.get(token=enroll_token)
+            except EnrollLink.DoesNotExist:
+                return Response({'detail': 'Invalid enrolment link.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not enroll_link.is_valid:
+                return Response({'detail': 'This enrolment link has expired or reached its limit.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Path 3: domain whitelist ─────────────────────────────────
+        domain_entry = None
+        if not enroll_link:
+            email = (request.data.get('email') or '').lower()
+            domain = email.split('@')[-1] if '@' in email else ''
+            try:
+                domain_entry = AllowedDomain.objects.get(domain=domain)
+            except AllowedDomain.DoesNotExist:
+                return Response(
+                    {'detail': 'Self-registration is not available. Contact your administrator.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # ── Create user ───────────────────────────────────────────────
+        data = dict(request.data)
+        # Override role from link/domain — self-registrants can't pick their own role
+        if enroll_link:
+            data['role'] = enroll_link.default_role
+        elif domain_entry:
+            data['role'] = domain_entry.default_role
+
+        serializer = RegisterSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
+            if enroll_link:
+                EnrollLink.objects.filter(pk=enroll_link.pk).update(uses_count=enroll_link.uses_count + 1)
             return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -160,7 +210,7 @@ class UserPasswordResetView(APIView):
         send_mail(
             subject='VenU — your temporary password',
             message=(
-                f'Hi {user.full_name},\n\n'
+                f'Hi {user.get_full_name()},\n\n'
                 f'Your temporary password is: {temp}\n\n'
                 'Please log in and change it immediately.'
             ),
@@ -169,3 +219,183 @@ class UserPasswordResetView(APIView):
             fail_silently=False,
         )
         return Response({'detail': 'Password reset email sent.'})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Enrollment: AllowedDomain CRUD (EN1)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AllowedDomainListCreateView(APIView):
+    """
+    GET  /api/auth/enrollment/domains/  — list domains (admin)
+    POST /api/auth/enrollment/domains/  — add domain (admin)
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        serializer = AllowedDomainSerializer(AllowedDomain.objects.all(), many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = AllowedDomainSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AllowedDomainDetailView(APIView):
+    """
+    DELETE /api/auth/enrollment/domains/{id}/  — remove domain (admin)
+    PATCH  /api/auth/enrollment/domains/{id}/  — update domain (admin)
+    """
+    permission_classes = [IsAdmin]
+
+    def _get(self, pk):
+        try:
+            return AllowedDomain.objects.get(pk=pk)
+        except AllowedDomain.DoesNotExist:
+            return None
+
+    def patch(self, request, pk):
+        obj = self._get(pk)
+        if not obj:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = AllowedDomainSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        obj = self._get(pk)
+        if not obj:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Enrollment: EnrollLink CRUD (EN2)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class EnrollLinkListCreateView(APIView):
+    """
+    GET  /api/auth/enrollment/links/  — list links (admin)
+    POST /api/auth/enrollment/links/  — create link (admin)
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        serializer = EnrollLinkSerializer(EnrollLink.objects.all(), many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = EnrollLinkSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EnrollLinkDetailView(APIView):
+    """
+    PATCH  /api/auth/enrollment/links/{id}/  — update (admin)
+    DELETE /api/auth/enrollment/links/{id}/  — delete (admin)
+    """
+    permission_classes = [IsAdmin]
+
+    def _get(self, pk):
+        try:
+            return EnrollLink.objects.get(pk=pk)
+        except EnrollLink.DoesNotExist:
+            return None
+
+    def patch(self, request, pk):
+        obj = self._get(pk)
+        if not obj:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = EnrollLinkSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        obj = self._get(pk)
+        if not obj:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Enrollment: Bulk invite (EN4)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class BulkInviteView(APIView):
+    """
+    POST /api/auth/enrollment/bulk-invite/
+
+    Body: { "emails": ["a@x.com", ...], "role": "STUDENT", "send_email": true }
+    Creates accounts with a random temp password and optionally emails them.
+    Returns {created: [...], skipped: [...]} where skipped = emails that already exist.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        import secrets
+        import string
+        from django.conf import settings as django_settings
+        from django.core.mail import send_mail
+
+        emails = request.data.get('emails', [])
+        role = request.data.get('role', 'STUDENT')
+        send_email = request.data.get('send_email', True)
+
+        if not isinstance(emails, list) or not emails:
+            return Response({'detail': 'Provide a non-empty list of email addresses.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_roles = [r.value for r in __import__('users.models', fromlist=['UserRole']).UserRole]
+        if role not in valid_roles:
+            return Response({'detail': f'Invalid role. Choose from: {", ".join(valid_roles)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = []
+        skipped = []
+
+        for email in emails:
+            email = email.strip().lower()
+            if not email:
+                continue
+            if User.objects.filter(email=email).exists():
+                skipped.append(email)
+                continue
+            temp = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+            user = User.objects.create_user(
+                email=email,
+                password=temp,
+                first_name='',
+                last_name='',
+                role=role,
+            )
+            created.append(email)
+            if send_email:
+                try:
+                    send_mail(
+                        subject='You have been invited to VenU',
+                        message=(
+                            f'Hi,\n\n'
+                            f'You have been invited to VenU, the campus venue booking system.\n\n'
+                            f'Log in at: {getattr(django_settings, "FRONTEND_URL", "https://venu.up.railway.app")}/login\n'
+                            f'Email: {email}\n'
+                            f'Temporary password: {temp}\n\n'
+                            'Please change your password after first login.'
+                        ),
+                        from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
+                        recipient_list=[email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+
+        return Response({'created': created, 'skipped': skipped}, status=status.HTTP_201_CREATED)

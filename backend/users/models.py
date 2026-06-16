@@ -1,5 +1,8 @@
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 
 class UserRole(models.TextChoices):
@@ -84,3 +87,66 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_student(self):
         return self.role == UserRole.STUDENT
+
+    @property
+    def full_name(self):
+        return self.get_full_name()
+
+
+class AllowedDomain(models.Model):
+    """
+    Email domains that may self-register without an enroll token.
+    e.g. "example.edu" lets anyone@example.edu create an account.
+    """
+    domain = models.CharField(max_length=253, unique=True)
+    default_role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.STUDENT,
+    )
+    note = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['domain']
+
+    def __str__(self):
+        return self.domain
+
+
+class EnrollLink(models.Model):
+    """
+    One-time (or limited-use) enrolment links.
+    Distribute to cohorts so they can self-register as a specific role.
+    """
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    default_role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.STUDENT,
+    )
+    uses_limit = models.PositiveIntegerField(default=0, help_text='0 = unlimited')
+    uses_count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL, null=True, related_name='enroll_links_created',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'EnrollLink {self.token} ({self.default_role})'
+
+    @property
+    def is_valid(self):
+        if not self.is_active:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        if self.uses_limit and self.uses_count >= self.uses_limit:
+            return False
+        return True

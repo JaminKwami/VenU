@@ -28,6 +28,7 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
     amenities: venue?.amenities || [],
     min_notice_hours: venue?.min_notice_hours ?? 24,
     description: venue?.description || '',
+    access: venue?.access || 'both',
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -147,6 +148,15 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
             <div className="field">
               <label htmlFor="vf-notice">Minimum notice (hours)</label>
               <input id="vf-notice" className="input" type="number" min="0" value={form.min_notice_hours} onChange={e => set('min_notice_hours', Number(e.target.value))} />
+            </div>
+            <div className="field">
+              <label htmlFor="vf-access">Who can book</label>
+              <select id="vf-access" className="select" value={form.access} onChange={e => set('access', e.target.value)}>
+                <option value="both">Staff and students</option>
+                <option value="staff">Staff only</option>
+                <option value="student">Students only</option>
+                <option value="none">Not bookable (hidden)</option>
+              </select>
             </div>
           </div>
 

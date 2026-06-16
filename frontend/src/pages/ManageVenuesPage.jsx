@@ -151,6 +151,7 @@ export default function ManageVenuesPage() {
                 <th className="hide-sm">Type</th>
                 <th>Capacity</th>
                 <th className="hide-sm">Utilisation</th>
+                <th className="hide-sm">Access</th>
                 <th>Status</th>
                 <th>Bookable</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -182,6 +183,12 @@ export default function ManageVenuesPage() {
                         </div>
                       );
                     })()}
+                  </td>
+                  <td className="hide-sm">
+                    {v.access === 'both' && <span className="badge badge-neutral">All</span>}
+                    {v.access === 'staff' && <span className="badge badge-pending">Staff</span>}
+                    {v.access === 'student' && <span className="badge badge-approved">Students</span>}
+                    {v.access === 'none' && <span className="badge badge-cancelled">Hidden</span>}
                   </td>
                   <td>{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
                   <td>

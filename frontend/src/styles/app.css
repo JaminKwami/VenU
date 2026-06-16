@@ -314,6 +314,10 @@ span.role-sel { cursor: default; padding-right: .7em; }
 .role-tile.on { border-color: var(--accent); background: var(--accent-soft); }
 .role-tile .rt-name { font-family: var(--font-mono); font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-ink); }
 .role-tile .rt-desc { font-size: .78rem; color: var(--ink-65); line-height: 1.4; }
+.enrollment-row { display: flex; align-items: center; gap: .8rem; padding: .75rem 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.enrollment-row:last-of-type { border-bottom: none; }
+.enrollment-row.dim { opacity: .5; }
+.enr-domain { font-family: var(--font-mono); font-size: .82rem; font-weight: 600; color: var(--ink); }
 
 /* ── Admin settings ── */
 .settings-inline-form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
