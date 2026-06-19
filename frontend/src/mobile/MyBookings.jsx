@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { Icon } from '../components/icons';
+import CheckInModal from '../components/CheckInModal';
 import { hm, dateChip, todayISO } from '../utils/venueUi';
 import { M_STATUS } from './mobileUi';
 
@@ -14,6 +15,7 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState(null);
   const [tab, setTab] = useState(0);
   const [cancelling, setCancelling] = useState(null);
+  const [qrBooking, setQrBooking] = useState(null);
 
   useEffect(() => {
     api.get('/bookings/')
@@ -93,6 +95,7 @@ export default function MyBookings() {
           const chip = dateChip(b.date);
           const canCancel = ['APPROVED', 'PENDING'].includes(b.status) && b.date >= today;
           const canRetry = b.status === 'REJECTED';
+          const canCheckIn = b.status === 'APPROVED' && b.check_in_token && b.date >= today;
           return (
             <div className="card m-blist-card" key={b.id}>
               <div className="m-bcard">
@@ -103,9 +106,14 @@ export default function MyBookings() {
                 </div>
                 <span className={`badge ${cls}`}><span className="dot" />{label}</span>
               </div>
-              {(b.rejection_reason || canCancel || canRetry) && (
+              {(b.rejection_reason || canCancel || canRetry || canCheckIn) && (
                 <div className="m-bcard-foot">
                   {b.rejection_reason && <span className="m-reason">{b.rejection_reason}</span>}
+                  {canCheckIn && (
+                    <button className="m-mini-btn" onClick={() => setQrBooking(b)}>
+                      <Icon.QR width={13} height={13} /> {b.checked_in_at ? 'Checked in' : 'Check in'}
+                    </button>
+                  )}
                   {canRetry && (
                     <button className="m-mini-btn" onClick={() => tryAgain(b)}>Try again →</button>
                   )}
@@ -120,6 +128,8 @@ export default function MyBookings() {
           );
         })}
       </div>
+
+      {qrBooking && <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />}
     </>
   );
 }
