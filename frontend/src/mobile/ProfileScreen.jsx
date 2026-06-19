@@ -6,6 +6,7 @@ import { useAppearanceStore, ACCENTS } from '../store/appearanceStore';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { Icon } from '../components/icons';
 import { initials } from './mobileUi';
+import { useFeedback } from './MobileFeedback';
 
 const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
 
@@ -26,9 +27,11 @@ export default function ProfileScreen() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { theme, accent, setAppearance } = useAppearanceStore();
+  const { toast } = useFeedback();
   const [notify, setNotify] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
 
   const name = user?.full_name || user?.email?.split('@')[0] || 'You';
+  const institution = user?.email?.split('@')[1] || null;
 
   function cycleAccent() {
     const idx = ACCENTS.findIndex((a) => a.id === accent);
@@ -37,10 +40,11 @@ export default function ProfileScreen() {
   }
 
   async function enableNotifications(want) {
-    if (!want) { setNotify(false); return; }
-    if (typeof Notification === 'undefined') { window.alert('Notifications are not supported on this device.'); return; }
+    if (!want) { setNotify(false); toast('Notifications turned off'); return; }
+    if (typeof Notification === 'undefined') { toast('Notifications aren’t supported on this device.'); return; }
     const perm = await Notification.requestPermission();
-    setNotify(perm === 'granted');
+    if (perm === 'granted') { setNotify(true); toast('Notifications enabled'); }
+    else { setNotify(false); toast(perm === 'denied' ? 'Blocked in browser settings' : 'Permission not granted'); }
   }
 
   async function handleLogout() {
@@ -81,10 +85,12 @@ export default function ProfileScreen() {
             {accentLabel} <Icon.ChevronRight width={16} height={16} />
           </span>
         </button>
-        <div className="m-pref-row" style={{ borderBottom: 'none' }}>
-          <span className="pl">Institution</span>
-          <span className="pr">VenU Campus</span>
-        </div>
+        {institution && (
+          <div className="m-pref-row" style={{ borderBottom: 'none' }}>
+            <span className="pl">Institution</span>
+            <span className="pr">{institution}</span>
+          </div>
+        )}
       </div>
 
       <button className="m-sign-out" onClick={handleLogout}>

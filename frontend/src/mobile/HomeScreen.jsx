@@ -6,6 +6,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { Icon } from '../components/icons';
 import { hm, dateChip, todayISO } from '../utils/venueUi';
 import { M_STATUS, greeting, firstNameOf, weekDays } from './mobileUi';
+import { useFeedback } from './MobileFeedback';
 
 export default function HomeScreen() {
   usePageTitle('Home');
@@ -14,6 +15,7 @@ export default function HomeScreen() {
   const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
   const [bookings, setBookings] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const { toast, confirm } = useFeedback();
 
   useEffect(() => {
     api.get('/bookings/')
@@ -49,20 +51,24 @@ export default function HomeScreen() {
   const approvedToday = all.filter((b) => b.status === 'APPROVED' && b.decided_at?.startsWith(today)).length;
 
   async function cancelBooking(b) {
-    if (!window.confirm(`Cancel your booking of ${b.venue.name} on ${b.date}?`)) return;
+    const ok = await confirm({
+      title: 'Cancel this booking?',
+      message: `${b.venue.name} on ${b.date}. This can't be undone.`,
+      confirmLabel: 'Cancel booking',
+      cancelLabel: 'Keep it',
+      danger: true,
+    });
+    if (!ok) return;
     setCancelling(b.id);
     try {
       await api.patch(`/bookings/${b.id}/cancel/`);
       setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'CANCELLED' } : x)));
+      toast('Booking cancelled');
     } catch {
-      window.alert('Cancellation failed — please try again.');
+      toast('Cancellation failed — please try again.');
     } finally {
       setCancelling(null);
     }
-  }
-
-  function tryAgain(b) {
-    navigate('/book', { state: { venueId: b.venue.id, venueName: b.venue.name } });
   }
 
   const dateLine = new Date().toLocaleDateString('en-GB', {

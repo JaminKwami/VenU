@@ -230,30 +230,30 @@ class ApproveBookingTest(TestCase):
 
     def test_approve_sets_status(self):
         b = make_booking(self.user, self.venue, self.tomorrow, status=BookingStatus.PENDING)
-        approved = approve_booking(b.id, self.admin)
+        approved = approve_booking(b, self.admin)
         self.assertEqual(approved.status, BookingStatus.APPROVED)
 
     def test_approve_sets_decided_by(self):
         b = make_booking(self.user, self.venue, self.tomorrow, status=BookingStatus.PENDING)
-        approved = approve_booking(b.id, self.admin)
+        approved = approve_booking(b, self.admin)
         self.assertEqual(approved.decided_by_id, self.admin.id)
 
     def test_approve_sets_decided_at(self):
         b = make_booking(self.user, self.venue, self.tomorrow, status=BookingStatus.PENDING)
         before = timezone.now()
-        approved = approve_booking(b.id, self.admin)
+        approved = approve_booking(b, self.admin)
         self.assertIsNotNone(approved.decided_at)
         self.assertGreaterEqual(approved.decided_at, before)
 
     def test_cannot_approve_already_approved(self):
         b = make_booking(self.user, self.venue, self.tomorrow, status=BookingStatus.APPROVED)
         with self.assertRaises(ValidationError):
-            approve_booking(b.id, self.admin)
+            approve_booking(b, self.admin)
 
     def test_cannot_approve_cancelled(self):
         b = make_booking(self.user, self.venue, self.tomorrow, status=BookingStatus.CANCELLED)
         with self.assertRaises(ValidationError):
-            approve_booking(b.id, self.admin)
+            approve_booking(b, self.admin)
 
 
 class PastDateTest(TestCase):

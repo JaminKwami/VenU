@@ -304,6 +304,11 @@
 .m-alt-name { font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-alt-meta { font-size: 11px; color: var(--ink-45); margin-top: 2px; }
 .m-alt-empty { margin: 0 20px; padding: 14px; border-radius: 16px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+.m-field-hint { font-size: 12px; color: var(--ink-45); margin-top: 2px; }
+.m-repeat { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--surface); }
+.m-repeat-toggle { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; cursor: pointer; }
+.m-repeat-check { width: 20px; height: 20px; accent-color: var(--accent); }
+.m-repeat-fields { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
 
 /* ─ Confirmation + confetti ─ */
 .m-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
@@ -338,6 +343,18 @@
 .m-decline-panel { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .m-decline-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .m-app .m-decline-chips .chip { font-size: 12px; padding: .35em .8em; }
+
+/* ─ Toasts + confirm sheet ─ */
+.m-toast-area { position: fixed; left: 50%; bottom: calc(var(--m-tab-h) + var(--m-safe-b) + 14px); transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: 90vw; }
+.m-toast { background: var(--ink); color: var(--canvas); border-radius: var(--r-pill); padding: 12px 18px; font-size: 14px; font-weight: 600; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.28); animation: mToastIn .4s var(--m-spring); }
+@keyframes mToastIn { from { opacity: 0; transform: translateY(12px) scale(.94); } to { opacity: 1; transform: none; } }
+.m-sheet-overlay { position: fixed; inset: 0; z-index: 320; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; animation: mFade .2s var(--m-ease); }
+@keyframes mFade { from { opacity: 0; } to { opacity: 1; } }
+.m-sheet { width: 100%; max-width: 430px; background: var(--surface); border-radius: 24px 24px 0 0; padding: 24px 20px calc(20px + var(--m-safe-b)); box-shadow: 0 -8px 40px rgba(0,0,0,.25); animation: mSheetUp .34s var(--m-spring); }
+@keyframes mSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+.m-sheet-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; }
+.m-sheet-msg { font-size: 14px; color: var(--ink-65); margin-top: 6px; line-height: 1.5; }
+.m-sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
 
 /* ─ VENUE DETAIL ─ */
 .m-vd { display: flex; flex-direction: column; min-height: 100%; }

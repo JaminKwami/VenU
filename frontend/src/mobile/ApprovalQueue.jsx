@@ -4,6 +4,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { Icon } from '../components/icons';
 import { hm, prettyDate } from '../utils/venueUi';
 import { initials } from './mobileUi';
+import { useFeedback } from './MobileFeedback';
 
 const DECLINE_REASONS = [
   'Venue reserved for maintenance',
@@ -20,6 +21,7 @@ export default function ApprovalQueue() {
   const [leaving, setLeaving] = useState(new Set());
   const [declining, setDeclining] = useState(null);
   const [reason, setReason] = useState('');
+  const { toast } = useFeedback();
 
   useEffect(() => {
     api.get('/bookings/')
@@ -47,9 +49,10 @@ export default function ApprovalQueue() {
     setActing(b.id);
     try {
       await api.patch(`/bookings/${b.id}/approve/`);
+      toast('Request approved');
       removeAfterAnimation(b.id);
     } catch (err) {
-      window.alert(err.response?.data?.detail || 'Approval failed.');
+      toast(err.response?.data?.detail || 'Approval failed.');
     } finally {
       setActing(null);
     }
@@ -61,9 +64,10 @@ export default function ApprovalQueue() {
       await api.patch(`/bookings/${b.id}/reject/`, { reason });
       setDeclining(null);
       setReason('');
+      toast('Request declined');
       removeAfterAnimation(b.id);
     } catch (err) {
-      window.alert(err.response?.data?.detail || 'Decline failed.');
+      toast(err.response?.data?.detail || 'Decline failed.');
     } finally {
       setActing(null);
     }

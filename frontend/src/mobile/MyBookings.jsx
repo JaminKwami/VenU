@@ -6,6 +6,7 @@ import { Icon } from '../components/icons';
 import CheckInModal from '../components/CheckInModal';
 import { hm, dateChip, todayISO } from '../utils/venueUi';
 import { M_STATUS } from './mobileUi';
+import { useFeedback } from './MobileFeedback';
 
 const TABS = ['Upcoming', 'Past', 'Pending'];
 
@@ -16,6 +17,7 @@ export default function MyBookings() {
   const [tab, setTab] = useState(0);
   const [cancelling, setCancelling] = useState(null);
   const [qrBooking, setQrBooking] = useState(null);
+  const { toast, confirm } = useFeedback();
 
   useEffect(() => {
     api.get('/bookings/')
@@ -42,13 +44,21 @@ export default function MyBookings() {
   }, [all, tab, today]);
 
   async function cancelBooking(b) {
-    if (!window.confirm(`Cancel your booking of ${b.venue.name} on ${b.date}?`)) return;
+    const ok = await confirm({
+      title: 'Cancel this booking?',
+      message: `${b.venue.name} on ${b.date}. This can't be undone.`,
+      confirmLabel: 'Cancel booking',
+      cancelLabel: 'Keep it',
+      danger: true,
+    });
+    if (!ok) return;
     setCancelling(b.id);
     try {
       await api.patch(`/bookings/${b.id}/cancel/`);
       setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'CANCELLED' } : x)));
+      toast('Booking cancelled');
     } catch {
-      window.alert('Cancellation failed — please try again.');
+      toast('Cancellation failed — please try again.');
     } finally {
       setCancelling(null);
     }

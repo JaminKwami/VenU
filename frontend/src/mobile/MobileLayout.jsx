@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/axios';
 import BottomTabBar from './BottomTabBar';
+import { MobileFeedbackProvider } from './MobileFeedback';
 
 /*
  * Mobile shell — activates at ≤900px. Renders the active screen inside a
@@ -27,14 +28,16 @@ export default function MobileLayout() {
   }, [isAdmin, location.pathname]);
 
   return (
-    <div className="m-app">
-      <main className="m-screens">
-        {/* key on pathname remounts the screen so the slide-in animation fires */}
-        <div className="m-screen" key={location.pathname}>
-          <Outlet />
-        </div>
-      </main>
-      <BottomTabBar isAdmin={isAdmin} pendingCount={pendingCount} />
-    </div>
+    <MobileFeedbackProvider>
+      <div className="m-app">
+        <main className="m-screens">
+          {/* key on pathname remounts the screen so the slide-in animation fires */}
+          <div className="m-screen" key={location.pathname}>
+            <Outlet />
+          </div>
+        </main>
+        <BottomTabBar isAdmin={isAdmin} pendingCount={pendingCount} />
+      </div>
+    </MobileFeedbackProvider>
   );
 }

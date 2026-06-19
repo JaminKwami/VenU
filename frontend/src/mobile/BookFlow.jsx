@@ -5,6 +5,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { Icon } from '../components/icons';
 import { hm, todayISO, venueGradient } from '../utils/venueUi';
 import ConfettiCanvas from './ConfettiCanvas';
+import { useFeedback } from './MobileFeedback';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 const DURATIONS = [1, 2, 3];
@@ -41,6 +42,10 @@ export default function BookFlow() {
   const [created, setCreated] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [loadingAlt, setLoadingAlt] = useState(false);
+  const [repeatOn, setRepeatOn] = useState(false);
+  const [repeatFreq, setRepeatFreq] = useState('weekly');
+  const [repeatUntil, setRepeatUntil] = useState('');
+  const { toast } = useFeedback();
   const [waitlisted, setWaitlisted] = useState(false);
 
   useEffect(() => {
@@ -108,14 +113,16 @@ export default function BookFlow() {
         end_time: pad(hour + duration),
       });
       setWaitlisted(true);
+      toast('Added to the waitlist');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not join the waitlist.');
+      toast(err.response?.data?.detail || 'Could not join the waitlist.');
     }
   }
 
   async function submit() {
     if (!agree) { setError('Please agree to the venue use policy.'); return; }
     if (overCap) { setError(`Attendee count exceeds the venue capacity of ${venue.capacity}.`); return; }
+    if (repeatOn && !repeatUntil) { setError('Pick an end date for the repeat, or turn repeating off.'); return; }
     setSubmitting(true);
     setError('');
     try {
@@ -127,6 +134,7 @@ export default function BookFlow() {
         purpose,
         notes,
         attendee_count: attendees ? Number(attendees) : null,
+        ...(repeatOn && repeatUntil ? { repeat: { frequency: repeatFreq, until: repeatUntil } } : {}),
       });
       setCreated(res.data);
       setStep(4);
@@ -140,6 +148,7 @@ export default function BookFlow() {
   function reset() {
     setStep(1); setHour(null); setPurpose(''); setAttendees(''); setNotes('');
     setAgree(false); setCreated(null); setError('');
+    setRepeatOn(false); setRepeatUntil('');
   }
 
   // ── Step indicator ──
@@ -300,6 +309,7 @@ export default function BookFlow() {
             <div className="field">
               <label htmlFor="m-purpose">What's it for? <span className="m-opt">optional</span></label>
               <input id="m-purpose" className="input" placeholder="e.g. Robotics showcase" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+              <span className="m-field-hint">A short purpose helps approvers decide faster.</span>
             </div>
             <div className="field">
               <label htmlFor="m-attend">Attendees <span className="m-opt">optional</span></label>
@@ -309,6 +319,30 @@ export default function BookFlow() {
               <label htmlFor="m-notes">Notes for facilities <span className="m-opt">optional</span></label>
               <textarea id="m-notes" className="input" rows={2} placeholder="Equipment, layout, access needs…" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+
+            <div className="m-repeat">
+              <label className="m-repeat-toggle">
+                <span>Repeat this booking</span>
+                <input type="checkbox" className="m-repeat-check" checked={repeatOn} onChange={(e) => setRepeatOn(e.target.checked)} />
+              </label>
+              {repeatOn && (
+                <div className="m-repeat-fields">
+                  <div className="field">
+                    <label htmlFor="m-freq">Frequency</label>
+                    <select id="m-freq" className="input m-select" value={repeatFreq} onChange={(e) => setRepeatFreq(e.target.value)}>
+                      <option value="weekly">Every week</option>
+                      <option value="biweekly">Every two weeks</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="m-until">Until</label>
+                    <input id="m-until" className="input" type="date" min={date} value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} />
+                  </div>
+                  <span className="m-field-hint">Dates that clash or fall in a break are skipped automatically.</span>
+                </div>
+              )}
+            </div>
+
             {overCap && (
               <div className="m-conflict-box err"><Icon.X width={18} height={18} /><span>Attendee count exceeds the venue capacity of {venue.capacity}.</span></div>
             )}
@@ -320,7 +354,7 @@ export default function BookFlow() {
           </div>
           <div className="m-book-footer m-book-footer-split">
             <button className="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} disabled={!agree || submitting} onClick={submit}>
+            <button className="btn btn-primary" style={{ flex: 1 }} disabled={!agree || submitting || (repeatOn && !repeatUntil)} onClick={submit}>
               {submitting ? 'Submitting…' : <>Submit request <Icon.Check width={18} height={18} /></>}
             </button>
           </div>
@@ -336,8 +370,15 @@ export default function BookFlow() {
             <h2>Request sent!</h2>
             <span className="m-ref">#VENU-{String(created.id).padStart(4, '0')}</span>
             <p className="m-what-next">
-              Your hold is in the queue. You'll hear back within a few hours — most requests are decided the same day.
+              {created.series_count > 1
+                ? `${created.series_count} recurring requests are in the queue. You'll hear back soon — most are decided the same day.`
+                : "Your hold is in the queue. You'll hear back within a few hours — most requests are decided the same day."}
             </p>
+            {created.skipped_dates?.length > 0 && (
+              <p className="m-what-next" style={{ fontSize: 13, opacity: .85 }}>
+                {created.skipped_dates.length} {created.skipped_dates.length === 1 ? 'date was' : 'dates were'} skipped (already booked or in a break).
+              </p>
+            )}
             <div className="m-confirm-actions">
               <button className="btn btn-primary btn-block" onClick={() => navigate('/dashboard')}>Back to home</button>
               <button className="btn btn-ghost btn-block" onClick={reset}>Book another room</button>

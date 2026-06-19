@@ -80,10 +80,11 @@ def calculate_similarity_score(current_venue, candidate_venue, min_capacity):
 
     Returns
     -------
-    float : Score 0-100, or 0 if capacity insufficient
+    float : Score 0-100, or None if the venue is too small to be usable.
+        A score of 0 (dissimilar but big enough) is still a valid suggestion.
     """
     if candidate_venue.capacity < min_capacity:
-        return 0
+        return None
 
     # Capacity match: penalize for difference from original
     capacity_diff = abs(candidate_venue.capacity - current_venue.capacity)
@@ -149,7 +150,7 @@ def get_venue_alternatives(date, start_time, end_time, current_venue_id, min_cap
             continue
 
         score = calculate_similarity_score(current_venue, venue, min_capacity)
-        if score > 0:
+        if score is not None:  # None = too small; 0 = usable but dissimilar
             scored.append((venue, score))
 
     ranked = sorted(scored, key=lambda x: x[1], reverse=True)[:limit]
