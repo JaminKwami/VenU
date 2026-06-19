@@ -24,6 +24,7 @@ import BookFlow from './mobile/BookFlow';
 import MyBookings from './mobile/MyBookings';
 import ApprovalQueue from './mobile/ApprovalQueue';
 import ProfileScreen from './mobile/ProfileScreen';
+import VenueDetail from './mobile/VenueDetail';
 
 function PrivateRoute() {
   const { accessToken } = useAuthStore();
@@ -66,7 +67,7 @@ export default function App() {
           <Route element={<Shell />}>
             <Route path='/dashboard' element={<Responsive mobile={<HomeScreen />} desktop={<DashboardPage />} />} />
             <Route path='/venues'    element={<Responsive mobile={<VenueGrid />} desktop={<VenuesPage />} />} />
-            <Route path='/venues/:id' element={<VenueDetailPage />} />
+            <Route path='/venues/:id' element={<Responsive mobile={<VenueDetail />} desktop={<VenueDetailPage />} />} />
             <Route path='/venues/:id/calendar' element={<VenueCalendarPage />} />
             <Route path='/book'      element={<Responsive mobile={<BookFlow />} desktop={<BookingPage />} />} />
 

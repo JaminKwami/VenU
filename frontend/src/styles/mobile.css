@@ -325,6 +325,27 @@
 .m-decline-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .m-app .m-decline-chips .chip { font-size: 12px; padding: .35em .8em; }
 
+/* ─ VENUE DETAIL ─ */
+.m-vd { display: flex; flex-direction: column; min-height: 100%; }
+.m-vd-hero { position: relative; min-height: 200px; padding: 16px 20px 20px; padding-top: calc(16px + var(--m-safe-t)); display: flex; flex-direction: column; justify-content: space-between; color: #fff; overflow: hidden; border-radius: 0 0 28px 28px; }
+.m-vd-hero-top { display: flex; align-items: center; justify-content: space-between; position: relative; }
+.m-vd-back { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.18); backdrop-filter: blur(6px); color: #fff; display: grid; place-items: center; }
+.m-vd-cap { font-size: 11px; font-weight: 800; letter-spacing: .06em; background: rgba(0,0,0,.28); backdrop-filter: blur(4px); padding: .4em .7em; border-radius: 6px; }
+.m-vd-hero-name { position: relative; margin-top: auto; }
+.m-vd-hero-name h1 { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+.m-vd-loc { font-size: 13px; opacity: .9; margin-top: 4px; }
+.m-vd-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 20px 4px; }
+.m-vd-spec { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; text-align: center; box-shadow: var(--m-sh-card); }
+.m-vd-spec .sl { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-45); }
+.m-vd-spec .sv { display: block; font-family: var(--font-display); font-size: 18px; font-weight: 800; margin-top: 4px; }
+.m-vd-block { padding: 16px 20px 0; }
+.m-vd-desc { font-size: 14px; color: var(--ink-65); line-height: 1.55; }
+.m-vd-amen { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-vd-amen-item { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill); padding: .4em .8em; }
+.m-vd-amen-item svg { color: var(--success); }
+.m-vd-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.m-vd-footer { padding: 16px 20px; padding-bottom: calc(16px + var(--m-safe-b)); margin-top: auto; }
+
 /* ─ PROFILE ─ */
 .m-profile-hero { padding: 28px 20px 24px; padding-top: calc(24px + var(--m-safe-t)); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .m-profile-av { width: 80px; height: 80px; border-radius: 50%; background: var(--accent-soft); border: 3px solid var(--surface); box-shadow: var(--m-sh-card); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 28px; color: var(--accent); }
