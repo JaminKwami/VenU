@@ -14,6 +14,16 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import CheckInKioskPage from './pages/CheckInKioskPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
+import { useIsMobile } from './hooks/useIsMobile';
+
+// Mobile-first layer (activates ≤900px)
+import MobileLayout from './mobile/MobileLayout';
+import HomeScreen from './mobile/HomeScreen';
+import VenueGrid from './mobile/VenueGrid';
+import BookFlow from './mobile/BookFlow';
+import MyBookings from './mobile/MyBookings';
+import ApprovalQueue from './mobile/ApprovalQueue';
+import ProfileScreen from './mobile/ProfileScreen';
 
 function PrivateRoute() {
   const { accessToken } = useAuthStore();
@@ -33,6 +43,16 @@ function SuperAdminRoute() {
   return user?.role === 'ADMIN' ? <Outlet /> : <Navigate to='/dashboard' replace />;
 }
 
+/* Chrome: mobile bottom-nav shell ≤900px, desktop sidebar ≥901px. */
+function Shell() {
+  return useIsMobile() ? <MobileLayout /> : <Layout />;
+}
+
+/* Picks the right component for the current viewport. */
+function Responsive({ mobile, desktop }) {
+  return useIsMobile() ? mobile : desktop;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -43,15 +63,21 @@ export default function App() {
         <Route path='/checkin' element={<CheckInKioskPage />} />
 
         <Route element={<PrivateRoute />}>
-          <Route element={<Layout />}>
-            <Route path='/dashboard' element={<DashboardPage />} />
-            <Route path='/venues'    element={<VenuesPage />} />
+          <Route element={<Shell />}>
+            <Route path='/dashboard' element={<Responsive mobile={<HomeScreen />} desktop={<DashboardPage />} />} />
+            <Route path='/venues'    element={<Responsive mobile={<VenueGrid />} desktop={<VenuesPage />} />} />
             <Route path='/venues/:id' element={<VenueDetailPage />} />
             <Route path='/venues/:id/calendar' element={<VenueCalendarPage />} />
-            <Route path='/book'      element={<BookingPage />} />
+            <Route path='/book'      element={<Responsive mobile={<BookFlow />} desktop={<BookingPage />} />} />
+
+            {/* Mobile-only screens (desktop folds these into the dashboard) */}
+            <Route path='/my-bookings' element={<Responsive mobile={<MyBookings />} desktop={<Navigate to='/dashboard' replace />} />} />
+            <Route path='/profile'     element={<Responsive mobile={<ProfileScreen />} desktop={<Navigate to='/dashboard' replace />} />} />
 
             {/* ADMIN + RECEPTIONIST */}
             <Route element={<AdminRoute />}>
+              {/* Mobile approval queue lives at /approvals; desktop uses /admin/approvals */}
+              <Route path='/approvals' element={<Responsive mobile={<ApprovalQueue />} desktop={<Navigate to='/admin/approvals' replace />} />} />
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
             </Route>
 

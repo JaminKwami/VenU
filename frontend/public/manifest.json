@@ -1,0 +1,17 @@
+{
+  "name": "VenU",
+  "short_name": "VenU",
+  "description": "Book any campus space",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F6F2",
+  "theme_color": "#2D4EAA",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    { "src": "/screenshot-home.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow" }
+  ]
+}

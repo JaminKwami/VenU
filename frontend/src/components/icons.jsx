@@ -94,4 +94,10 @@ export const Icon = {
   Key: (p) => (
     <svg {...base} {...p}><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.5 9.5M15.5 8.5l2 2M18 5l2 2"/></svg>
   ),
+  Home: (p) => (
+    <svg {...base} strokeWidth={1.9} {...p}><path d="M3 12 12 3l9 9"/><path d="M9 21V12h6v9"/></svg>
+  ),
+  Profile: (p) => (
+    <svg {...base} strokeWidth={1.9} {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+  ),
 };
