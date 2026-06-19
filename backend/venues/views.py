@@ -137,7 +137,9 @@ class VenueAlternativesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ranked = get_venue_alternatives(date, start_time, end_time, current_venue_id, min_capacity)
+        ranked = get_venue_alternatives(
+            date, start_time, end_time, current_venue_id, min_capacity, user=request.user,
+        )
 
         results = []
         for venue, score in ranked:

@@ -291,6 +291,20 @@
 .m-book-footer { padding: 16px 20px; padding-bottom: calc(16px + var(--m-safe-b)); margin-top: auto; }
 .m-book-footer-split { display: flex; gap: 10px; }
 
+/* AI suggested alternatives (shown on conflict) */
+.m-alt { padding: 14px 0 0; }
+.m-alt-head { display: flex; align-items: center; gap: 6px; padding: 0 20px 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.m-alt-row { display: flex; gap: 10px; padding: 0 20px 4px; overflow-x: auto; scrollbar-width: none; }
+.m-alt-row::-webkit-scrollbar { display: none; }
+.m-alt-card { min-width: 150px; border-radius: var(--m-r-lg); overflow: hidden; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--m-sh-card); flex-shrink: 0; text-align: left; transition: transform .3s var(--m-spring); }
+.m-alt-card:active { transform: scale(.97); }
+.m-alt-vis { height: 56px; position: relative; }
+.m-alt-score { position: absolute; bottom: 6px; left: 6px; font-size: 9px; font-weight: 800; letter-spacing: .04em; color: #fff; background: rgba(0,0,0,.32); backdrop-filter: blur(4px); padding: .2em .5em; border-radius: 4px; }
+.m-alt-body { padding: 8px 10px 10px; }
+.m-alt-name { font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-alt-meta { font-size: 11px; color: var(--ink-45); margin-top: 2px; }
+.m-alt-empty { margin: 0 20px; padding: 14px; border-radius: 16px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+
 /* ─ Confirmation + confetti ─ */
 .m-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
 .m-confirm { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; padding: 40px 24px; text-align: center; gap: 16px; }

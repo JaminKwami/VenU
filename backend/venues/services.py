@@ -8,30 +8,56 @@ from bookings.services import check_booking_conflict
 from .models import Venue
 
 
-def get_available_venues(date, start_time, end_time):
+def _accessible_to(qs, user):
     """
-    Return all active venues that have no conflicts during the requested slot.
+    Narrow a venue queryset to those the user is allowed to book, mirroring
+    _check_venue_access(): hidden venues are always excluded, and staff/student
+    only see venues open to their role.
+    """
+    from users.models import UserRole
+
+    qs = qs.exclude(access='none')
+    role = getattr(user, 'role', None)
+    if role in (UserRole.ADMIN, UserRole.RECEPTIONIST):
+        return qs
+    if role == UserRole.STAFF:
+        return qs.exclude(access='student')
+    if role == UserRole.STUDENT:
+        return qs.exclude(access='staff')
+    return qs
+
+
+def get_available_venues(date, start_time, end_time, user=None):
+    """
+    Return active venues that have no conflicts during the requested slot.
+
+    If `user` is given, the result is also filtered to venues that user's role
+    is permitted to book — so suggested alternatives are always bookable.
 
     Parameters
     ----------
     date : datetime.date
     start_time : datetime.time
     end_time : datetime.time
+    user : User, optional
+        When provided, restricts results by venue access control.
 
     Returns
     -------
     QuerySet of Venue objects with no bookings during the slot
     """
-    all_active = Venue.objects.filter(is_active=True)
-    unavailable_ids = set()
+    base = Venue.objects.filter(is_active=True)
+    if user is not None:
+        base = _accessible_to(base, user)
 
-    for venue in all_active:
+    unavailable_ids = set()
+    for venue in base:
         try:
             check_booking_conflict(venue, date, start_time, end_time)
         except ValidationError:
             unavailable_ids.add(venue.id)
 
-    return Venue.objects.filter(is_active=True).exclude(id__in=unavailable_ids)
+    return base.exclude(id__in=unavailable_ids)
 
 
 def calculate_similarity_score(current_venue, candidate_venue, min_capacity):
@@ -74,20 +100,21 @@ def calculate_similarity_score(current_venue, candidate_venue, min_capacity):
     else:
         amenities_score = 50
 
-    # Same building bonus
-    building_bonus = 20 if current_venue.building == candidate_venue.building else 0
+    # Same building: full marks on the location component (0 or 100),
+    # so at the 20% weight it contributes up to 20 points to the score.
+    building_score = 100 if current_venue.building and current_venue.building == candidate_venue.building else 0
 
     # Weighted composite
     score = (
         capacity_score * 0.4 +
         amenities_score * 0.4 +
-        building_bonus * 0.2
+        building_score * 0.2
     )
 
     return round(score, 1)
 
 
-def get_venue_alternatives(date, start_time, end_time, current_venue_id, min_capacity, limit=5):
+def get_venue_alternatives(date, start_time, end_time, current_venue_id, min_capacity, limit=5, user=None):
     """
     Find and rank alternative venues for a booking conflict.
 
@@ -102,17 +129,19 @@ def get_venue_alternatives(date, start_time, end_time, current_venue_id, min_cap
         Minimum attendee count
     limit : int
         Max alternatives to return (default 5)
+    user : User, optional
+        When provided, only venues the user may book are suggested.
 
     Returns
     -------
-    list of dict : Venue data with 'similarity_score' added
+    list of (Venue, score) : ranked, capped at `limit`
     """
     try:
         current_venue = Venue.objects.get(id=current_venue_id)
     except Venue.DoesNotExist:
         return []
 
-    available = get_available_venues(date, start_time, end_time)
+    available = get_available_venues(date, start_time, end_time, user=user)
 
     scored = []
     for venue in available:

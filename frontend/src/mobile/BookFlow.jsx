@@ -39,6 +39,9 @@ export default function BookFlow() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
+  const [alternatives, setAlternatives] = useState([]);
+  const [loadingAlt, setLoadingAlt] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);
 
   useEffect(() => {
     api.get('/venues/').then((r) => {
@@ -65,6 +68,50 @@ export default function BookFlow() {
     return HOURS.find((h) => !overlaps(taken, h, duration) && h !== hour) ?? null;
   }, [clash, taken, duration, hour]);
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
+
+  // AI suggestions: when the chosen slot clashes, fetch similar venues that
+  // ARE free at this time, ranked by capacity + amenities + building match.
+  useEffect(() => {
+    if (!clash || !venue || hour == null) { setAlternatives([]); return; }
+    let stale = false;
+    setLoadingAlt(true);
+    api.get('/venues/alternatives/', {
+      params: {
+        date,
+        start_time: pad(hour),
+        end_time: pad(hour + duration),
+        current_venue_id: venue.id,
+        min_capacity: attendees ? Number(attendees) : 1,
+      },
+    })
+      .then((r) => { if (!stale) setAlternatives(r.data); })
+      .catch(() => { if (!stale) setAlternatives([]); })
+      .finally(() => { if (!stale) setLoadingAlt(false); });
+    return () => { stale = true; };
+  }, [clash, venue, hour, duration, date, attendees]);
+
+  useEffect(() => { setWaitlisted(false); }, [venueId, date, hour, duration]);
+
+  function selectAlternative(alt) {
+    setVenues((prev) => (prev.some((v) => v.id === alt.id) ? prev : [...prev, alt]));
+    setVenueId(alt.id);
+    setAlternatives([]);
+    setHour(null);
+  }
+
+  async function joinWaitlist() {
+    try {
+      await api.post('/bookings/waitlist/', {
+        venue: venue.id,
+        date,
+        start_time: pad(hour),
+        end_time: pad(hour + duration),
+      });
+      setWaitlisted(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Could not join the waitlist.');
+    }
+  }
 
   async function submit() {
     if (!agree) { setError('Please agree to the venue use policy.'); return; }
@@ -184,6 +231,42 @@ export default function BookFlow() {
                   ? `${pad(hour)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
                   : `${pad(hour)}–${pad(hour + duration)} is free. No conflicts detected.`}
               </span>
+            </div>
+          )}
+
+          {clash && (
+            <div className="m-alt">
+              {loadingAlt ? (
+                <div className="m-alt-row">
+                  {[1, 2].map((i) => <div className="skel" key={i} style={{ minWidth: 150, height: 96, borderRadius: 16 }} />)}
+                </div>
+              ) : alternatives.length > 0 ? (
+                <>
+                  <div className="m-alt-head"><Icon.Search width={14} height={14} /> Similar spaces free at this time</div>
+                  <div className="m-alt-row">
+                    {alternatives.map((alt) => (
+                      <button key={alt.id} className="m-alt-card" onClick={() => selectAlternative(alt)}>
+                        <div className="m-alt-vis" style={{ background: venueGradient(alt.id) }}>
+                          {alt.similarity_score != null && <span className="m-alt-score">{Math.round(alt.similarity_score)}% match</span>}
+                        </div>
+                        <div className="m-alt-body">
+                          <div className="m-alt-name">{alt.name}</div>
+                          <div className="m-alt-meta">{alt.building || alt.location} · {alt.capacity} cap</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="m-alt-empty">
+                  <span>{waitlisted
+                    ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
+                    : 'No similar space is free then. Join the waitlist and we’ll email you if it opens.'}</span>
+                  {!waitlisted && (
+                    <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={joinWaitlist}>Join waitlist</button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
