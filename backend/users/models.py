@@ -57,6 +57,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)   # required for Django admin access
     date_joined = models.DateTimeField(auto_now_add=True)
 
+    # Two-factor auth (TOTP). `mfa_secret` is the base32 shared secret; it's set
+    # during setup and only enforced once `mfa_enabled` is True.
+    mfa_enabled = models.BooleanField(default=False)
+    mfa_secret = models.CharField(max_length=64, blank=True, default='')
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -91,6 +96,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def full_name(self):
         return self.get_full_name()
+
+
+class MfaBackupCode(models.Model):
+    """One-time backup codes for 2FA recovery (stored hashed)."""
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='mfa_backup_codes')
+    code_hash = models.CharField(max_length=128)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'MfaBackupCode(user={self.user_id}, used={self.used_at is not None})'
 
 
 class AllowedDomain(models.Model):

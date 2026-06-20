@@ -12,3 +12,4 @@ psycopg[binary]==3.2.13
 whitenoise==6.8.2
 gunicorn==23.0.0
 pywebpush==2.0.3
+pyotp==2.9.0

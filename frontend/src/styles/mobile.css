@@ -355,6 +355,8 @@
 .m-sheet-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; }
 .m-sheet-msg { font-size: 14px; color: var(--ink-65); margin-top: 6px; line-height: 1.5; }
 .m-sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+.m-backup-codes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+.m-backup-codes span { font-family: var(--font-mono, monospace); font-size: 15px; font-weight: 700; text-align: center; padding: 10px; background: var(--canvas-2); border-radius: 10px; letter-spacing: .08em; }
 
 /* ─ VENUE DETAIL ─ */
 .m-vd { display: flex; flex-direction: column; min-height: 100%; }

@@ -9,6 +9,7 @@ import { initials } from './mobileUi';
 import { useFeedback } from './MobileFeedback';
 import { INSTITUTION, INSTITUTION_FULL } from '../constants';
 import { enablePush, disablePush } from '../push';
+import MfaModal from './MfaModal';
 
 const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
 
@@ -27,9 +28,11 @@ function Toggle({ on, onChange, label }) {
 export default function ProfileScreen() {
   usePageTitle('Profile');
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const { theme, accent, setAppearance } = useAppearanceStore();
   const { toast } = useFeedback();
+  const [mfaOpen, setMfaOpen] = useState(false);
+  const mfaOn = !!user?.mfa_enabled;
   const [notify, setNotify] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
   const [pwOpen, setPwOpen] = useState(false);
   const [curPw, setCurPw] = useState('');
@@ -156,6 +159,10 @@ export default function ProfileScreen() {
             {accentLabel} <Icon.ChevronRight width={16} height={16} />
           </span>
         </button>
+        <button className="m-pref-row m-pref-btn" onClick={() => setMfaOpen(true)}>
+          <span className="pl m-pref-ic"><Icon.Shield width={18} height={18} /> Two-factor auth</span>
+          <span className="pr">{mfaOn ? 'On' : 'Off'} <Icon.ChevronRight width={16} height={16} /></span>
+        </button>
         <button className="m-pref-row m-pref-btn" onClick={() => setPwOpen(true)}>
           <span className="pl m-pref-ic"><Icon.Key width={18} height={18} /> Change password</span>
           <Icon.ChevronRight width={16} height={16} />
@@ -169,6 +176,15 @@ export default function ProfileScreen() {
       <button className="m-sign-out" onClick={handleLogout}>
         <Icon.Logout width={18} height={18} /> Sign out
       </button>
+
+      {mfaOpen && (
+        <MfaModal
+          enabled={mfaOn}
+          toast={toast}
+          onChanged={(on) => setUser({ ...user, mfa_enabled: on })}
+          onClose={() => setMfaOpen(false)}
+        />
+      )}
 
       {pwOpen && (
         <div className="m-sheet-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setPwOpen(false); }}>

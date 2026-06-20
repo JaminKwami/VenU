@@ -116,3 +116,82 @@ class ChangePasswordTest(TestCase):
             'current_password': 'OldPassw0rd!', 'new_password': 'abc',
         }, format='json')
         self.assertEqual(res.status_code, 400)
+
+
+import pyotp
+
+
+@override_settings(REST_FRAMEWORK={'DEFAULT_THROTTLE_CLASSES': [], 'DEFAULT_THROTTLE_RATES': {}})
+class MfaTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+        self.user = make_user(email='mfa@uhas.edu.gh', password='OldPassw0rd!')
+        self.client.force_authenticate(self.user)
+
+    def _setup_and_enable(self):
+        res = self.client.post('/api/auth/mfa/setup/', {}, format='json')
+        secret = res.data['secret']
+        code = pyotp.TOTP(secret).now()
+        en = self.client.post('/api/auth/mfa/enable/', {'code': code}, format='json')
+        return secret, en
+
+    def test_setup_returns_secret_and_uri(self):
+        res = self.client.post('/api/auth/mfa/setup/', {}, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['secret'])
+        self.assertIn('otpauth://', res.data['otpauth_uri'])
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.mfa_enabled)  # not enabled until confirmed
+
+    def test_enable_with_valid_code(self):
+        secret, en = self._setup_and_enable()
+        self.assertEqual(en.status_code, 200)
+        self.assertEqual(len(en.data['backup_codes']), 8)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.mfa_enabled)
+
+    def test_enable_with_bad_code_rejected(self):
+        self.client.post('/api/auth/mfa/setup/', {}, format='json')
+        res = self.client.post('/api/auth/mfa/enable/', {'code': '000000'}, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.mfa_enabled)
+
+    def test_login_requires_otp_when_enabled(self):
+        secret, _ = self._setup_and_enable()
+        anon = APIClient()
+        # password only → mfa_required
+        r1 = anon.post('/api/auth/login/', {'email': self.user.email, 'password': 'OldPassw0rd!'}, format='json')
+        self.assertEqual(r1.status_code, 400)
+        self.assertTrue(r1.data.get('mfa_required'))
+        # with valid otp → tokens
+        r2 = anon.post('/api/auth/login/', {
+            'email': self.user.email, 'password': 'OldPassw0rd!', 'otp': pyotp.TOTP(secret).now(),
+        }, format='json')
+        self.assertEqual(r2.status_code, 200)
+        self.assertIn('access', r2.data)
+
+    def test_backup_code_works_once(self):
+        secret, en = self._setup_and_enable()
+        backup = en.data['backup_codes'][0]
+        anon = APIClient()
+        ok = anon.post('/api/auth/login/', {'email': self.user.email, 'password': 'OldPassw0rd!', 'otp': backup}, format='json')
+        self.assertEqual(ok.status_code, 200)
+        again = anon.post('/api/auth/login/', {'email': self.user.email, 'password': 'OldPassw0rd!', 'otp': backup}, format='json')
+        self.assertEqual(again.status_code, 400)  # single use
+
+    def test_disable_requires_password(self):
+        self._setup_and_enable()
+        bad = self.client.post('/api/auth/mfa/disable/', {'password': 'WRONG'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+        ok = self.client.post('/api/auth/mfa/disable/', {'password': 'OldPassw0rd!'}, format='json')
+        self.assertEqual(ok.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.mfa_enabled)
+
+    def test_login_without_mfa_unaffected(self):
+        anon = APIClient()
+        r = anon.post('/api/auth/login/', {'email': self.user.email, 'password': 'OldPassw0rd!'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('access', r.data)

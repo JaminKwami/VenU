@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [otp, setOtp] = useState('');
 
   // Password-reset state
   const [resetEmail, setResetEmail] = useState('');
@@ -74,7 +76,9 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { data: tokens } = await api.post('/auth/login/', { email, password });
+      const payload = { email, password };
+      if (mfaRequired) payload.otp = otp;
+      const { data: tokens } = await api.post('/auth/login/', payload);
       setTokens(tokens.access, tokens.refresh);
       const { data: user } = await api.get('/auth/me/', {
         headers: { Authorization: `Bearer ${tokens.access}` },
@@ -82,7 +86,13 @@ export default function LoginPage() {
       setUser(user);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid credentials. Please try again.');
+      const data = err.response?.data;
+      if (data?.mfa_required) {
+        setMfaRequired(true);
+        setError('');
+      } else {
+        setError(data?.detail || (mfaRequired ? 'Invalid authentication code.' : 'Invalid credentials. Please try again.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -161,11 +171,31 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={mfaRequired}
                   />
                 </div>
+                {mfaRequired && (
+                  <div className="field">
+                    <label htmlFor="login-otp">Authentication code</label>
+                    <input
+                      id="login-otp"
+                      className="input"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6-digit code or backup code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                    <span style={{ fontSize: '.8rem', color: 'var(--ink-45)', marginTop: '.3rem' }}>
+                      Enter the code from your authenticator app.
+                    </span>
+                  </div>
+                )}
                 {error && <p className="auth-error">{error}</p>}
                 <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading}>
-                  {loading ? 'Signing in…' : 'Sign in'}
+                  {loading ? (mfaRequired ? 'Verifying…' : 'Signing in…') : (mfaRequired ? 'Verify' : 'Sign in')}
                 </button>
               </form>
               <p className="auth-note" style={{ textAlign: 'center', marginTop: '1rem' }}>

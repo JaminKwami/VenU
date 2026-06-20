@@ -18,8 +18,9 @@ from core.permissions import IsAdmin
 from .models import AllowedDomain, EnrollLink
 from .serializers import (
     UserSerializer, RegisterSerializer, UserUpdateSerializer,
-    AllowedDomainSerializer, EnrollLinkSerializer,
+    AllowedDomainSerializer, EnrollLinkSerializer, MfaTokenObtainPairSerializer,
 )
+from . import mfa as mfa_lib
 
 User = get_user_model()
 
@@ -27,11 +28,12 @@ User = get_user_model()
 class LoginView(TokenObtainPairView):
     """
     POST /api/auth/login
-    Returns access + refresh tokens.
-    Inherits all logic from simplejwt — no extra code needed.
+    Returns access + refresh tokens. Enforces TOTP 2FA when the account has it
+    enabled (responds {mfa_required: true} until a valid `otp` is supplied).
     """
     permission_classes = [AllowAny]
     throttle_scope = 'login'
+    serializer_class = MfaTokenObtainPairSerializer
 
 
 class RefreshView(TokenRefreshView):
@@ -228,6 +230,57 @@ class ChangePasswordView(APIView):
         request.user.set_password(new_password)
         request.user.save(update_fields=['password'])
         return Response({'detail': 'Password changed.'})
+
+
+class MfaSetupView(APIView):
+    """
+    POST /api/auth/mfa/setup/  — begin 2FA enrolment.
+    Generates a pending secret and returns it + the otpauth URI for a QR code.
+    Does NOT enable 2FA until /mfa/enable/ confirms a valid code.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        secret = mfa_lib.new_secret()
+        user.mfa_secret = secret
+        user.mfa_enabled = False
+        user.save(update_fields=['mfa_secret', 'mfa_enabled'])
+        return Response({
+            'secret': secret,
+            'otpauth_uri': mfa_lib.provisioning_uri(user, secret),
+        })
+
+
+class MfaEnableView(APIView):
+    """POST /api/auth/mfa/enable/  Body: {"code": "123456"} — confirm + enable, returns backup codes once."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.mfa_secret:
+            return Response({'detail': 'Start setup first.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not mfa_lib.verify_totp(user.mfa_secret, request.data.get('code')):
+            return Response({'detail': 'That code is incorrect. Try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.mfa_enabled = True
+        user.save(update_fields=['mfa_enabled'])
+        codes = mfa_lib.generate_backup_codes(user)
+        return Response({'detail': 'Two-factor authentication is on.', 'backup_codes': codes})
+
+
+class MfaDisableView(APIView):
+    """POST /api/auth/mfa/disable/  Body: {"password": "..."} — turn 2FA off."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.check_password(request.data.get('password', '')):
+            return Response({'detail': 'Your password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.mfa_enabled = False
+        user.mfa_secret = ''
+        user.save(update_fields=['mfa_enabled', 'mfa_secret'])
+        user.mfa_backup_codes.all().delete()
+        return Response({'detail': 'Two-factor authentication is off.'})
 
 
 class UserListView(APIView):

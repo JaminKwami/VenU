@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'is_active', 'date_joined']
+        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'is_active', 'date_joined', 'mfa_enabled']
         read_only_fields = fields
 
     def get_full_name(self, obj):
@@ -90,3 +90,26 @@ class EnrollLinkSerializer(serializers.ModelSerializer):
 
     def get_created_by_email(self, obj):
         return obj.created_by.email if obj.created_by else None
+
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer  # noqa: E402
+
+
+class MfaTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Standard email/password login, plus a TOTP check when the account has
+    2FA enabled. The client first posts email+password; if the account has
+    MFA on, it gets {mfa_required: true} and re-posts with `otp`.
+    """
+
+    def validate(self, attrs):
+        data = super().validate(attrs)  # validates credentials, sets self.user
+        user = self.user
+        if getattr(user, 'mfa_enabled', False):
+            from .mfa import verify_user_otp
+            otp = (self.initial_data.get('otp') or '').strip()
+            if not otp:
+                raise serializers.ValidationError({'mfa_required': True})
+            if not verify_user_otp(user, otp):
+                raise serializers.ValidationError({'detail': 'Invalid authentication code.'})
+        return data
