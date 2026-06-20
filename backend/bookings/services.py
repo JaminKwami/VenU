@@ -331,6 +331,15 @@ def approve_booking(booking, decided_by=None):
     booking.decided_by = decided_by
     booking.decided_at = timezone.now()
     booking.save(update_fields=['status', 'decided_by', 'decided_at', 'updated_at'])
+
+    from notifications.services import notify_user
+    notify_user(
+        booking.user,
+        'Booking approved ✅',
+        f'{booking.venue.name} on {booking.date:%a %d %b}, '
+        f'{booking.start_time:%H:%M}–{booking.end_time:%H:%M} is confirmed.',
+        url='/my-bookings',
+    )
     return booking
 
 
@@ -344,6 +353,15 @@ def reject_booking(booking, decided_by=None, reason=''):
     booking.decided_by = decided_by
     booking.decided_at = timezone.now()
     booking.save(update_fields=['status', 'rejection_reason', 'decided_by', 'decided_at', 'updated_at'])
+
+    from notifications.services import notify_user
+    notify_user(
+        booking.user,
+        'Booking declined',
+        (f'{booking.venue.name} on {booking.date:%a %d %b} wasn’t approved'
+         + (f': {reason}' if reason else '.')),
+        url='/my-bookings',
+    )
     _notify_waitlist(booking)
     return booking
 

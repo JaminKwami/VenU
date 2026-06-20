@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'users',
     'venues',
     'bookings',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -189,6 +190,17 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@venu.local')
+
+
+# ------------------------------------------------------------------
+# WEB PUSH (VAPID)
+# ------------------------------------------------------------------
+# Generate a keypair once and set these env vars on the server. When unset,
+# push is silently disabled (the API reports configured=false) and the rest
+# of the app is unaffected.
+VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
+VAPID_ADMIN_EMAIL = config('VAPID_ADMIN_EMAIL', default='admin@uhas.edu.gh')
 
 
 # ------------------------------------------------------------------

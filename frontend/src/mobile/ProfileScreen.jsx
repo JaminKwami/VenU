@@ -8,6 +8,7 @@ import { Icon } from '../components/icons';
 import { initials } from './mobileUi';
 import { useFeedback } from './MobileFeedback';
 import { INSTITUTION, INSTITUTION_FULL } from '../constants';
+import { enablePush, disablePush } from '../push';
 
 const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
 
@@ -43,11 +44,26 @@ export default function ProfileScreen() {
   }
 
   async function enableNotifications(want) {
-    if (!want) { setNotify(false); toast('Notifications turned off'); return; }
-    if (typeof Notification === 'undefined') { toast('Notifications aren’t supported on this device.'); return; }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') { setNotify(true); toast('Notifications enabled'); }
-    else { setNotify(false); toast(perm === 'denied' ? 'Blocked in browser settings' : 'Permission not granted'); }
+    if (!want) {
+      setNotify(false);
+      await disablePush();
+      toast('Notifications turned off');
+      return;
+    }
+    try {
+      await enablePush();
+      setNotify(true);
+      toast('Notifications enabled');
+    } catch (err) {
+      setNotify(false);
+      const msg = {
+        unsupported: 'Notifications aren’t supported on this device.',
+        'no-sw': 'Reopen the installed app to enable notifications.',
+        'not-configured': 'Notifications aren’t set up on the server yet.',
+        denied: 'Blocked — allow notifications in your browser settings.',
+      }[err?.code] || 'Couldn’t enable notifications.';
+      toast(msg);
+    }
   }
 
   async function handleLogout() {
