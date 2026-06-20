@@ -340,19 +340,23 @@ function EnrollmentTab() {
     });
   }
 
+  const domainsLoading = domains === null;
+  const linksLoading = links === null;
+
   return (
     <div className="stack" style={{ gap: '1.4rem' }}>
       <div className="card card-pad reveal">
         <h3 style={{ marginBottom: '.3rem' }}>Allowed email domains</h3>
         <p className="muted" style={{ fontSize: '.86rem', marginBottom: '1.2rem' }}>Anyone with a matching email domain can self-register without an admin invite.</p>
-        {(domains || []).map(d => (
+        {domainsLoading && <p className="muted" style={{ fontSize: '.86rem' }}>Loading…</p>}
+        {!domainsLoading && (domains || []).map(d => (
           <div key={d.id} className="enrollment-row">
             <span className="enr-domain">@{d.domain}</span>
             <span className={`role-sel ${d.default_role.toLowerCase()}`} style={{ pointerEvents: 'none' }}>{ROLE_LABEL[d.default_role]}</span>
             <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => removeDomain(d.id)}>Remove</button>
           </div>
         ))}
-        {domains != null && domains.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No domains added yet.</p>}
+        {!domainsLoading && domains.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No domains added yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap' }} onSubmit={addDomain}>
           <input className="input" style={{ flex: '1 1 180px' }} placeholder="e.g. campus.edu" value={newDomain} onChange={e => setNewDomain(e.target.value)} />
           <select className="select" style={{ maxWidth: 140 }} value={newDomainRole} onChange={e => setNewDomainRole(e.target.value)}>
@@ -366,7 +370,8 @@ function EnrollmentTab() {
       <div className="card card-pad reveal">
         <h3 style={{ marginBottom: '.3rem' }}>Enrolment links</h3>
         <p className="muted" style={{ fontSize: '.86rem', marginBottom: '1.2rem' }}>Share these links to let people self-register with a specific role. Optional use limits and expiry.</p>
-        {(links || []).map(l => (
+        {linksLoading && <p className="muted" style={{ fontSize: '.86rem' }}>Loading…</p>}
+        {!linksLoading && (links || []).map(l => (
           <div key={l.id} className={`enrollment-row${!l.is_valid ? ' dim' : ''}`}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '.72rem', color: 'var(--ink-45)', marginBottom: '.2rem' }}>
@@ -392,7 +397,7 @@ function EnrollmentTab() {
             />
           </div>
         ))}
-        {links != null && links.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No enrolment links yet.</p>}
+        {!linksLoading && links.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No enrolment links yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={createLink}>
           <div className="field" style={{ flex: '1 1 140px', marginBottom: 0 }}>
             <label style={{ fontSize: '.72rem' }}>Role</label>
