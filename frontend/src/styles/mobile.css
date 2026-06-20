@@ -382,6 +382,9 @@
 .m-profile-av { width: 80px; height: 80px; border-radius: 50%; background: var(--accent-soft); border: 3px solid var(--surface); box-shadow: var(--m-sh-card); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 28px; color: var(--accent); }
 .m-profile-hero h2 { font-family: var(--font-display); font-size: 24px; font-weight: 800; }
 .m-profile-email { font-size: 14px; color: var(--ink-65); margin-top: 2px; }
+.m-profile-inst { font-size: 12px; color: var(--ink-45); margin-top: 4px; }
+.m-pref-ic { display: inline-flex; align-items: center; gap: 10px; }
+.m-pref-ic svg { color: var(--ink-65); }
 .m-role-pill { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: .35em .75em; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
 .m-pref-card { margin: 0 20px; overflow: hidden; }
 .m-pref-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 16px 20px; border-bottom: 1px solid var(--line); min-height: 56px; text-align: left; background: none; }
