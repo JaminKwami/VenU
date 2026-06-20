@@ -1,5 +1,5 @@
 import csv
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
@@ -542,6 +542,50 @@ class TermDateDetailView(APIView):
         except TermDate.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Day grid (cross-venue availability) ───────────────────────────────────────
+
+class DayGridView(APIView):
+    """
+    GET /api/bookings/day-grid/?date=YYYY-MM-DD
+    Every venue the user may book, plus its busy slots for that day — powers the
+    "find a free room" timetable grid in one request.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from venues.models import Venue
+        from venues.services import _accessible_to
+
+        d = parse_date(request.query_params.get('date') or '') or timezone.localdate()
+        venues = list(_accessible_to(Venue.objects.filter(is_active=True), request.user).order_by('name'))
+
+        slots = defaultdict(list)
+        bookings = (
+            Booking.objects
+            .filter(date=d, venue__in=venues, status__in=[BookingStatus.PENDING, BookingStatus.APPROVED])
+            .only('venue_id', 'user_id', 'start_time', 'end_time', 'status')
+        )
+        for b in bookings:
+            slots[b.venue_id].append({
+                'start_time': str(b.start_time)[:5],
+                'end_time': str(b.end_time)[:5],
+                'status': b.status,
+                'mine': b.user_id == request.user.id,
+            })
+
+        return Response({
+            'date': d.isoformat(),
+            'venues': [
+                {
+                    'id': v.id, 'name': v.name, 'capacity': v.capacity,
+                    'building': v.building or v.location, 'venue_type': v.venue_type,
+                    'slots': slots.get(v.id, []),
+                }
+                for v in venues
+            ],
+        })
 
 
 # ── Analytics / reporting ─────────────────────────────────────────────────────

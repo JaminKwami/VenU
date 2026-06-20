@@ -327,3 +327,32 @@ class AnalyticsTest(TestCase):
         body = res.content.decode()
         self.assertIn('Reference', body)
         self.assertIn('Analytics Hall', body)
+
+
+class DayGridTest(TestCase):
+    """Cross-venue day grid respects access control and reports busy slots."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.student = make_user('grid-student@test.com', UserRole.STUDENT)
+        self.both = make_venue('Open Grid Hall', access='both')
+        self.staff_only = make_venue('Staff Grid Room', access='staff')
+        self.tomorrow = date.today() + timedelta(days=1)
+        make_booking(self.student, self.both, self.tomorrow, '10:00', '11:00', status=BookingStatus.APPROVED)
+
+    def test_requires_auth(self):
+        res = self.client.get('/api/bookings/day-grid/')
+        self.assertEqual(res.status_code, 401)
+
+    def test_access_filtered_and_slots(self):
+        self.client.force_authenticate(self.student)
+        res = self.client.get(f'/api/bookings/day-grid/?date={self.tomorrow.isoformat()}')
+        self.assertEqual(res.status_code, 200)
+        names = [v['name'] for v in res.data['venues']]
+        self.assertIn('Open Grid Hall', names)
+        self.assertNotIn('Staff Grid Room', names)  # student can't see staff-only
+        hall = next(v for v in res.data['venues'] if v['name'] == 'Open Grid Hall')
+        self.assertEqual(len(hall['slots']), 1)
+        self.assertEqual(hall['slots'][0]['start_time'], '10:00')
+        self.assertTrue(hall['slots'][0]['mine'])

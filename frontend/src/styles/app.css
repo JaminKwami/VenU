@@ -194,6 +194,33 @@
 @media (max-width: 980px){ .ap-stats{grid-template-columns:repeat(2,1fr)} .ap-grid{grid-template-columns:1fr} .detail-card{position:static} }
 
 /* ── Manage venues ── */
+/* ── Timetable / find a room ── */
+.tt-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.tt-nav { display: flex; align-items: center; gap: .5rem; }
+.tt-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .82rem; color: var(--ink-65); }
+.tt-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.tt-sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.tt-sw.free { background: var(--success-soft); border: 1px solid var(--success); }
+.tt-sw.approved { background: var(--canvas-2); border: 1px solid var(--line-2); }
+.tt-sw.pending { background: var(--warn-soft); border: 1px solid var(--warn); }
+.tt-sw.mine { background: var(--accent-soft); border: 1px solid var(--accent); }
+.tt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.tt-grid { --tt-name: 150px; display: grid; min-width: 720px; }
+.tt-corner, .tt-head { position: sticky; top: 0; background: var(--canvas-2); font-family: var(--font-mono); font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-45); padding: .6rem .4rem; text-align: center; border-bottom: 1px solid var(--line); z-index: 1; }
+.tt-corner { text-align: left; left: 0; z-index: 2; }
+.tt-name { position: sticky; left: 0; background: var(--surface); border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: .5rem .6rem; display: flex; flex-direction: column; justify-content: center; min-height: 44px; z-index: 1; }
+.tt-name-btn { text-align: left; cursor: pointer; }
+.tt-name-btn:hover { background: var(--surface-2); }
+.tt-name-t { font-weight: 600; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-name-m { font-family: var(--font-mono); font-size: .58rem; color: var(--ink-45); text-transform: uppercase; }
+.tt-cell { min-height: 44px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 3px; transition: filter .15s; }
+.tt-c-free { background: var(--success-soft); cursor: pointer; }
+.tt-c-free:hover { filter: brightness(0.94); box-shadow: inset 0 0 0 2px var(--success); }
+.tt-c-approved { background: var(--canvas-2); }
+.tt-c-pending { background: var(--warn-soft); }
+.tt-c-mine { background: var(--accent-soft); }
+.tt-c-past { background: repeating-linear-gradient(45deg, var(--canvas), var(--canvas) 5px, var(--canvas-2) 5px, var(--canvas-2) 10px); }
+
 /* ── Reports ── */
 .rp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
 .rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; align-items: start; }

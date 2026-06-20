@@ -73,6 +73,7 @@ export default function Layout() {
         <div className="sb-section">Workspace</div>
         {navLink('/dashboard', 'Dashboard', Icon.Dash)}
         {navLink('/venues', 'Venues', Icon.Venues)}
+        {navLink('/timetable', 'Find a room', Icon.Calendar)}
         {navLink('/book', 'Book a room', Icon.Book)}
         {isAdmin && (
           <>

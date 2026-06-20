@@ -144,6 +144,7 @@
   padding-top: calc(16px + var(--m-safe-t));
 }
 .m-top-bar h1 { font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.m-top-bar .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-65); display: grid; place-items: center; }
 .m-section-title {
   padding: 14px 20px 10px;
   font-family: var(--font-sans);

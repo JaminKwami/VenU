@@ -43,6 +43,9 @@ export default function VenueGrid() {
     <>
       <div className="m-top-bar">
         <h1>Venues</h1>
+        <button className="icon-btn" aria-label="Find a free room" title="Find a free room" onClick={() => navigate('/timetable')}>
+          <Icon.Calendar width={20} height={20} />
+        </button>
       </div>
 
       <div className="m-search-wrap">

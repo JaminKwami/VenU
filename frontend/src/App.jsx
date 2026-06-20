@@ -7,6 +7,7 @@ import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import VenueCalendarPage from './pages/VenueCalendarPage';
 import BookingPage from './pages/BookingPage';
+import TimetablePage from './pages/TimetablePage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
 import ManageUsersPage from './pages/ManageUsersPage';
@@ -71,6 +72,7 @@ export default function App() {
             <Route path='/venues/:id' element={<Responsive mobile={<VenueDetail />} desktop={<VenueDetailPage />} />} />
             <Route path='/venues/:id/calendar' element={<VenueCalendarPage />} />
             <Route path='/book'      element={<Responsive mobile={<BookFlow />} desktop={<BookingPage />} />} />
+            <Route path='/timetable' element={<TimetablePage />} />
 
             {/* Mobile-only screens (desktop folds these into the dashboard) */}
             <Route path='/my-bookings' element={<Responsive mobile={<MyBookings />} desktop={<Navigate to='/dashboard' replace />} />} />
