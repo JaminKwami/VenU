@@ -274,8 +274,10 @@ export default function ManageUsersPage() {
 }
 
 function EnrollmentTab() {
-  const [domains, setDomains] = useState(null);
-  const [links, setLinks] = useState(null);
+  const [domains, setDomains] = useState([]);
+  const [links, setLinks] = useState([]);
+  const [domainsLoading, setDomainsLoading] = useState(true);
+  const [linksLoading, setLinksLoading] = useState(true);
   const [newDomain, setNewDomain] = useState('');
   const [newDomainRole, setNewDomainRole] = useState('STUDENT');
   const [addingDomain, setAddingDomain] = useState(false);
@@ -288,8 +290,8 @@ function EnrollmentTab() {
   const [copied, setCopied] = useState(null);
 
   useEffect(() => {
-    api.get('/auth/enrollment/domains/').then(r => setDomains(r.data)).catch(() => setDomains([]));
-    api.get('/auth/enrollment/links/').then(r => setLinks(r.data)).catch(() => setLinks([]));
+    api.get('/auth/enrollment/domains/').then(r => { setDomains(r.data); setDomainsLoading(false); }).catch(() => { setDomains([]); setDomainsLoading(false); });
+    api.get('/auth/enrollment/links/').then(r => { setLinks(r.data); setLinksLoading(false); }).catch(() => { setLinks([]); setLinksLoading(false); });
   }, []);
 
   async function addDomain(e) {
@@ -340,9 +342,6 @@ function EnrollmentTab() {
     });
   }
 
-  const domainsLoading = domains === null;
-  const linksLoading = links === null;
-
   return (
     <div className="stack" style={{ gap: '1.4rem' }}>
       <div className="card card-pad reveal">
@@ -356,7 +355,7 @@ function EnrollmentTab() {
             <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => removeDomain(d.id)}>Remove</button>
           </div>
         ))}
-        {!domainsLoading && domains.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No domains added yet.</p>}
+        {domains.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No domains added yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap' }} onSubmit={addDomain}>
           <input className="input" style={{ flex: '1 1 180px' }} placeholder="e.g. campus.edu" value={newDomain} onChange={e => setNewDomain(e.target.value)} />
           <select className="select" style={{ maxWidth: 140 }} value={newDomainRole} onChange={e => setNewDomainRole(e.target.value)}>
@@ -397,7 +396,7 @@ function EnrollmentTab() {
             />
           </div>
         ))}
-        {!linksLoading && links.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No enrolment links yet.</p>}
+        {links.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No enrolment links yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={createLink}>
           <div className="field" style={{ flex: '1 1 140px', marginBottom: 0 }}>
             <label style={{ fontSize: '.72rem' }}>Role</label>
