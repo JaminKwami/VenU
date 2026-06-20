@@ -1,4 +1,11 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -126,6 +133,101 @@ class LogoutView(APIView):
         except TokenError:
             return Response({'detail': 'Token is invalid or already blacklisted.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/auth/password-reset/   Body: {"email": "..."}
+    Always returns 200 (never reveals whether an account exists). If the email
+    matches an active user, emails a tokenised reset link to the SPA.
+    """
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        generic = Response(
+            {'detail': 'If that email is registered, a reset link is on its way.'},
+            status=status.HTTP_200_OK,
+        )
+        if not email:
+            return generic
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+        except User.DoesNotExist:
+            return generic
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        link = f'{settings.FRONTEND_URL.rstrip("/")}/login?uid={uid}&token={token}'
+        send_mail(
+            subject='VenU — reset your password',
+            message=(
+                f'Hi {user.first_name or "there"},\n\n'
+                f'Use the link below to set a new password. It expires shortly and '
+                f'can only be used once:\n\n{link}\n\n'
+                f'If you didn’t request this, you can safely ignore this email.'
+            ),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        return generic
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/auth/password-reset/confirm/
+    Body: {"uid": "...", "token": "...", "new_password": "..."}
+    """
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        uid = request.data.get('uid', '')
+        token = request.data.get('token', '')
+        new_password = request.data.get('new_password', '')
+
+        try:
+            user = User.objects.get(pk=urlsafe_base64_decode(uid).decode())
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            return Response({'detail': 'This reset link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'This reset link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({'detail': ' '.join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        return Response({'detail': 'Password updated. You can now sign in.'})
+
+
+class ChangePasswordView(APIView):
+    """
+    POST /api/auth/change-password/
+    Body: {"current_password": "...", "new_password": "..."}
+    For signed-in users (e.g. after a temporary password was issued).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current = request.data.get('current_password', '')
+        new_password = request.data.get('new_password', '')
+
+        if not request.user.check_password(current):
+            return Response({'detail': 'Your current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_password(new_password, request.user)
+        except DjangoValidationError as exc:
+            return Response({'detail': ' '.join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.set_password(new_password)
+        request.user.save(update_fields=['password'])
+        return Response({'detail': 'Password changed.'})
 
 
 class UserListView(APIView):

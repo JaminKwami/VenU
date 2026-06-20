@@ -131,6 +131,7 @@ REST_FRAMEWORK = {
         'login': '10/min',
         'token_refresh': '30/min',
         'kiosk': '60/min',
+        'password_reset': '5/min',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 100,
@@ -199,6 +200,9 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@venu.local')
 # Generate a keypair once and set these env vars on the server. When unset,
 # push is silently disabled (the API reports configured=false) and the rest
 # of the app is unaffected.
+# Public URL of the SPA, used to build password-reset links in emails.
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_ADMIN_EMAIL = config('VAPID_ADMIN_EMAIL', default='admin@uhas.edu.gh')

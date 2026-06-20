@@ -12,6 +12,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const enrollToken = searchParams.get('token');
+  const resetUid = searchParams.get('uid');
+  const resetToken = searchParams.get('token');
+  const isResetLink = !!(resetUid && resetToken);
   const { setTokens, setUser } = useAuthStore();
 
   // Login state
@@ -20,8 +23,46 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Register state (when ?token= present)
-  const [mode, setMode] = useState(enrollToken ? 'register' : 'login');
+  // Password-reset state
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetDone, setResetDone] = useState(false);
+
+  // Register state (when ?token= present, with no uid) / reset (uid+token present)
+  const [mode, setMode] = useState(
+    isResetLink ? 'reset' : (enrollToken ? 'register' : 'login'),
+  );
+
+  async function handleForgot(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/auth/password-reset/', { email: resetEmail });
+      setResetSent(true);
+    } catch {
+      setResetSent(true); // never reveal whether the email exists
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleReset(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/auth/password-reset/confirm/', {
+        uid: resetUid, token: resetToken, new_password: newPassword,
+      });
+      setResetDone(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'This reset link is invalid or has expired.');
+    } finally {
+      setLoading(false);
+    }
+  }
   const [regFirst, setRegFirst] = useState('');
   const [regLast, setRegLast] = useState('');
   const [regEmail, setRegEmail] = useState('');
@@ -127,7 +168,80 @@ export default function LoginPage() {
                   {loading ? 'Signing in…' : 'Sign in'}
                 </button>
               </form>
+              <p className="auth-note" style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ display: 'inline', padding: 0, textDecoration: 'underline' }}
+                  onClick={() => { setMode('forgot'); setError(''); setResetSent(false); }}
+                >
+                  Forgot your password?
+                </button>
+              </p>
               <p className="auth-note">Accounts are issued by your institution's administrators</p>
+            </>
+          )}
+
+          {mode === 'forgot' && (
+            <>
+              <h1>Reset your password</h1>
+              {resetSent ? (
+                <>
+                  <p className="sub">If <b>{resetEmail}</b> has an account, a reset link is on its way. Check your inbox.</p>
+                  <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: '1rem' }} onClick={() => { setMode('login'); setError(''); }}>
+                    Back to sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="sub">Enter your university email and we'll send you a link to set a new password.</p>
+                  <form onSubmit={handleForgot}>
+                    <div className="field">
+                      <label htmlFor="forgot-email">University email</label>
+                      <input id="forgot-email" className="input" type="email" placeholder="you@uhas.edu.gh" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required autoFocus />
+                    </div>
+                    {error && <p className="auth-error">{error}</p>}
+                    <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading}>
+                      {loading ? 'Sending…' : 'Send reset link'}
+                    </button>
+                  </form>
+                  <p className="auth-note" style={{ textAlign: 'center', marginTop: '1rem' }}>
+                    <button type="button" className="btn btn-ghost btn-sm" style={{ display: 'inline', padding: 0, textDecoration: 'underline' }} onClick={() => { setMode('login'); setError(''); }}>
+                      Back to sign in
+                    </button>
+                  </p>
+                </>
+              )}
+            </>
+          )}
+
+          {mode === 'reset' && (
+            <>
+              <h1>Choose a new password</h1>
+              {resetDone ? (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  <div className="success-ring" style={{ margin: '0 auto 1.2rem' }}><Icon.Check /></div>
+                  <h2>Password updated</h2>
+                  <p className="sub" style={{ marginBottom: '1.5rem' }}>You can now sign in with your new password.</p>
+                  <button className="btn btn-primary btn-block" onClick={() => { setMode('login'); setResetDone(false); setError(''); }}>
+                    Go to sign in
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="sub">Set a new password for your account.</p>
+                  <form onSubmit={handleReset}>
+                    <div className="field">
+                      <label htmlFor="reset-password">New password</label>
+                      <input id="reset-password" className="input" type="password" minLength={8} placeholder="At least 8 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus />
+                    </div>
+                    {error && <p className="auth-error">{error}</p>}
+                    <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading}>
+                      {loading ? 'Updating…' : 'Update password'}
+                    </button>
+                  </form>
+                </>
+              )}
             </>
           )}
 

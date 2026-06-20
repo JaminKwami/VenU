@@ -31,6 +31,24 @@ export default function ProfileScreen() {
   const { theme, accent, setAppearance } = useAppearanceStore();
   const { toast } = useFeedback();
   const [notify, setNotify] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
+  const [pwOpen, setPwOpen] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+
+  async function changePassword(e) {
+    e.preventDefault();
+    setPwSaving(true);
+    try {
+      await api.post('/auth/change-password/', { current_password: curPw, new_password: newPw });
+      setPwOpen(false); setCurPw(''); setNewPw('');
+      toast('Password changed');
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   const name = user?.full_name || user?.email?.split('@')[0] || 'You';
   const role = user?.role;
@@ -134,6 +152,10 @@ export default function ProfileScreen() {
             {accentLabel} <Icon.ChevronRight width={16} height={16} />
           </span>
         </button>
+        <button className="m-pref-row m-pref-btn" onClick={() => setPwOpen(true)}>
+          <span className="pl m-pref-ic"><Icon.Key width={18} height={18} /> Change password</span>
+          <Icon.ChevronRight width={16} height={16} />
+        </button>
         <div className="m-pref-row" style={{ borderBottom: 'none' }}>
           <span className="pl">Institution</span>
           <span className="pr" title={INSTITUTION}>UHAS</span>
@@ -143,6 +165,26 @@ export default function ProfileScreen() {
       <button className="m-sign-out" onClick={handleLogout}>
         <Icon.Logout width={18} height={18} /> Sign out
       </button>
+
+      {pwOpen && (
+        <div className="m-sheet-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setPwOpen(false); }}>
+          <form className="m-sheet" onSubmit={changePassword}>
+            <h3 className="m-sheet-title">Change password</h3>
+            <div className="field" style={{ marginTop: 14 }}>
+              <label htmlFor="cur-pw">Current password</label>
+              <input id="cur-pw" className="input" type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} required autoFocus />
+            </div>
+            <div className="field" style={{ marginTop: 12 }}>
+              <label htmlFor="new-pw">New password</label>
+              <input id="new-pw" className="input" type="password" minLength={8} placeholder="At least 8 characters" value={newPw} onChange={(e) => setNewPw(e.target.value)} required />
+            </div>
+            <div className="m-sheet-actions">
+              <button type="button" className="btn btn-ghost btn-block" onClick={() => setPwOpen(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary btn-block" disabled={pwSaving}>{pwSaving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   );
 }
