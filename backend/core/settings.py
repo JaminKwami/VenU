@@ -173,7 +173,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # INTERNATIONALISATION
 # ------------------------------------------------------------------
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = config('TIME_ZONE', default='Africa/Johannesburg')
+TIME_ZONE = config('TIME_ZONE', default='Africa/Accra')  # UHAS — Ghana (GMT)
 USE_I18N = True
 USE_TZ = True
 
