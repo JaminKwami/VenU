@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 import { useAuthStore } from '../store/authStore';
 import { usePageTitle } from '../hooks/usePageTitle';
 import AppearanceControl from '../components/AppearanceControl';
@@ -24,6 +26,31 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [otp, setOtp] = useState('');
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+  const [ssoLabel, setSsoLabel] = useState('SSO');
+
+  // SSO: handle the redirect back from the IdP, and detect whether SSO is on.
+  useEffect(() => {
+    const ssoAccess = searchParams.get('sso_access');
+    const ssoRefresh = searchParams.get('sso_refresh');
+    const ssoErr = searchParams.get('sso_error');
+    if (ssoAccess && ssoRefresh) {
+      setTokens(ssoAccess, ssoRefresh);
+      api.get('/auth/me/', { headers: { Authorization: `Bearer ${ssoAccess}` } })
+        .then(({ data }) => { setUser(data); navigate('/dashboard'); })
+        .catch(() => setError('Single sign-on failed. Please try again.'));
+      return;
+    }
+    if (ssoErr) {
+      setError(ssoErr === 'inactive'
+        ? 'Your account is inactive — contact an administrator.'
+        : 'Single sign-on failed. Please try again.');
+    }
+    api.get('/auth/oidc/status/')
+      .then(({ data }) => { setSsoEnabled(data.enabled); if (data.label) setSsoLabel(data.label); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Password-reset state
   const [resetEmail, setResetEmail] = useState('');
@@ -147,6 +174,14 @@ export default function LoginPage() {
             <>
               <h1>Welcome back</h1>
               <p className="sub">Sign in to pick up where you left off.</p>
+              {ssoEnabled && !mfaRequired && (
+                <>
+                  <button type="button" className="btn btn-ghost btn-lg btn-block" onClick={() => { window.location.href = `${API_BASE}/auth/oidc/login/`; }}>
+                    Continue with {ssoLabel}
+                  </button>
+                  <div className="auth-or"><span>or sign in with email</span></div>
+                </>
+              )}
               <form onSubmit={handleLogin}>
                 <div className="field">
                   <label htmlFor="login-email">University email</label>

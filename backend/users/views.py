@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
+from django.shortcuts import redirect
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
@@ -281,6 +282,57 @@ class MfaDisableView(APIView):
         user.save(update_fields=['mfa_enabled', 'mfa_secret'])
         user.mfa_backup_codes.all().delete()
         return Response({'detail': 'Two-factor authentication is off.'})
+
+
+class OidcStatusView(APIView):
+    """GET /api/auth/oidc/status/ — whether SSO is available (drives the login button)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .oidc import oidc_enabled
+        return Response({'enabled': oidc_enabled(), 'label': getattr(settings, 'OIDC_LABEL', 'SSO')})
+
+
+class OidcLoginView(APIView):
+    """GET /api/auth/oidc/login/ — redirect the browser to the identity provider."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .oidc import oidc_enabled, get_client
+        if not oidc_enabled():
+            return Response({'detail': 'SSO is not enabled.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        redirect_uri = settings.OIDC_REDIRECT_URI or request.build_absolute_uri('/api/auth/oidc/callback/')
+        return get_client().authorize_redirect(request, redirect_uri)
+
+
+class OidcCallbackView(APIView):
+    """
+    GET /api/auth/oidc/callback/ — IdP redirects here. Exchanges the code,
+    provisions the user, mints VenU JWTs and hands them to the SPA via a
+    one-time redirect.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .oidc import oidc_enabled, get_client, provision_user_from_claims
+        from urllib.parse import urlencode
+
+        frontend = settings.FRONTEND_URL.rstrip('/')
+        if not oidc_enabled():
+            return redirect(f'{frontend}/login?sso_error=disabled')
+        try:
+            token = get_client().authorize_access_token(request)
+            claims = token.get('userinfo') or get_client().parse_id_token(request, token)
+            user, _ = provision_user_from_claims(claims)
+        except Exception:
+            return redirect(f'{frontend}/login?sso_error=failed')
+
+        if not user.is_active:
+            return redirect(f'{frontend}/login?sso_error=inactive')
+
+        refresh = RefreshToken.for_user(user)
+        params = urlencode({'sso_access': str(refresh.access_token), 'sso_refresh': str(refresh)})
+        return redirect(f'{frontend}/login?{params}')
 
 
 class UserListView(APIView):

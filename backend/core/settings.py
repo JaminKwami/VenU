@@ -203,6 +203,21 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@venu.local')
 # Public URL of the SPA, used to build password-reset links in emails.
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
+
+# ------------------------------------------------------------------
+# SSO / OpenID Connect (Microsoft Entra ID, Google, …)
+# ------------------------------------------------------------------
+# Disabled until all of OIDC_ENABLED + client id/secret + discovery URL are set.
+# For Microsoft: OIDC_DISCOVERY_URL =
+#   https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
+OIDC_ENABLED = config('OIDC_ENABLED', default=False, cast=bool)
+OIDC_CLIENT_ID = config('OIDC_CLIENT_ID', default='')
+OIDC_CLIENT_SECRET = config('OIDC_CLIENT_SECRET', default='')
+OIDC_DISCOVERY_URL = config('OIDC_DISCOVERY_URL', default='')
+OIDC_REDIRECT_URI = config('OIDC_REDIRECT_URI', default='')  # else built from the request
+OIDC_LABEL = config('OIDC_LABEL', default='Microsoft')
+OIDC_DEFAULT_ROLE = config('OIDC_DEFAULT_ROLE', default='STUDENT')
+
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_ADMIN_EMAIL = config('VAPID_ADMIN_EMAIL', default='admin@uhas.edu.gh')

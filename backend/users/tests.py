@@ -195,3 +195,55 @@ class MfaTest(TestCase):
         r = anon.post('/api/auth/login/', {'email': self.user.email, 'password': 'OldPassw0rd!'}, format='json')
         self.assertEqual(r.status_code, 200)
         self.assertIn('access', r.data)
+
+
+from users.oidc import oidc_enabled, provision_user_from_claims
+from users.models import AllowedDomain
+
+
+class OidcDisabledTest(TestCase):
+    """SSO is off unless fully configured; endpoints degrade gracefully."""
+
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_disabled_by_default(self):
+        self.assertFalse(oidc_enabled())
+        res = self.client.get('/api/auth/oidc/status/')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.data['enabled'])
+
+    def test_login_503_when_disabled(self):
+        res = self.client.get('/api/auth/oidc/login/')
+        self.assertEqual(res.status_code, 503)
+
+    def test_callback_redirects_with_error_when_disabled(self):
+        res = self.client.get('/api/auth/oidc/callback/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('sso_error=disabled', res['Location'])
+
+
+@override_settings(OIDC_DEFAULT_ROLE='STUDENT')
+class OidcProvisionTest(TestCase):
+    def test_creates_new_user_with_default_role(self):
+        user, created = provision_user_from_claims({
+            'email': 'newbie@uhas.edu.gh', 'given_name': 'New', 'family_name': 'Bie',
+        })
+        self.assertTrue(created)
+        self.assertEqual(user.role, UserRole.STUDENT)
+        self.assertFalse(user.has_usable_password())
+
+    def test_matches_existing_user_without_duplicate(self):
+        make_user(email='dup@uhas.edu.gh')
+        user, created = provision_user_from_claims({'email': 'dup@uhas.edu.gh', 'name': 'Dup User'})
+        self.assertFalse(created)
+
+    def test_domain_assigns_role(self):
+        AllowedDomain.objects.create(domain='staff.uhas.edu.gh', default_role=UserRole.STAFF)
+        user, _ = provision_user_from_claims({'email': 'lect@staff.uhas.edu.gh', 'name': 'A Lecturer'})
+        self.assertEqual(user.role, UserRole.STAFF)
+
+    def test_no_email_raises(self):
+        with self.assertRaises(ValueError):
+            provision_user_from_claims({'name': 'No Email'})
