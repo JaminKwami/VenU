@@ -125,6 +125,10 @@ export default function ProfileScreen() {
                   <span className="pl m-pref-ic"><Icon.Users width={18} height={18} /> Manage users</span>
                   <Icon.ChevronRight width={16} height={16} />
                 </button>
+                <button className="m-pref-row m-pref-btn" onClick={() => navigate('/admin/reports')}>
+                  <span className="pl m-pref-ic"><Icon.Dash width={18} height={18} /> Reports</span>
+                  <Icon.ChevronRight width={16} height={16} />
+                </button>
                 <button className="m-pref-row m-pref-btn" style={{ borderBottom: 'none' }} onClick={() => navigate('/admin/settings')}>
                   <span className="pl m-pref-ic"><Icon.Settings width={18} height={18} /> Settings</span>
                   <Icon.ChevronRight width={16} height={16} />

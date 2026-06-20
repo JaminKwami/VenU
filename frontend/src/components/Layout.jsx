@@ -80,6 +80,7 @@ export default function Layout() {
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
             {isSuperAdmin && navLink('/admin/venues', 'Manage venues', Icon.Manage)}
             {isSuperAdmin && navLink('/admin/users', 'Users', Icon.Users)}
+            {isSuperAdmin && navLink('/admin/reports', 'Reports', Icon.Dash)}
             {isSuperAdmin && navLink('/admin/settings', 'Settings', Icon.Settings)}
           </>
         )}

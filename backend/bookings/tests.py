@@ -281,3 +281,49 @@ class PastDateTest(TestCase):
             start_time=time(9, 0), end_time=time(10, 0),
         )
         self.assertIsNotNone(b.pk)
+
+
+class AnalyticsTest(TestCase):
+    """Analytics endpoint aggregation + admin gating."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.admin = make_user('an-admin@test.com', UserRole.ADMIN)
+        self.student = make_user('an-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Analytics Hall')
+        self.tomorrow = date.today() + timedelta(days=1)
+        make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.APPROVED)
+        make_booking(self.student, self.venue, self.tomorrow, '11:00', '12:00', status=BookingStatus.PENDING)
+        make_booking(self.student, self.venue, self.tomorrow, '14:00', '15:00', status=BookingStatus.REJECTED)
+
+    def test_requires_admin(self):
+        self.client.force_authenticate(self.student)
+        res = self.client.get('/api/bookings/analytics/')
+        self.assertEqual(res.status_code, 403)
+
+    def test_kpis_and_shape(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get('/api/bookings/analytics/?days=30')
+        self.assertEqual(res.status_code, 200)
+        k = res.data['kpis']
+        self.assertEqual(k['approved'], 1)
+        self.assertEqual(k['pending'], 1)
+        self.assertEqual(k['rejected'], 1)
+        self.assertEqual(k['approval_rate'], 50.0)  # 1 approved / 2 decided
+        self.assertEqual(len(res.data['peak_hours']), 12)  # 08..19
+        self.assertTrue(any(v['venue'] == 'Analytics Hall' for v in res.data['top_venues']))
+
+    def test_days_param_clamped(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get('/api/bookings/analytics/?days=99999')
+        self.assertLessEqual(res.data['range_days'], 365)
+
+    def test_csv_export(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get('/api/bookings/export-csv/')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('text/csv', res['Content-Type'])
+        body = res.content.decode()
+        self.assertIn('Reference', body)
+        self.assertIn('Analytics Hall', body)

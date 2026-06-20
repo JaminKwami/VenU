@@ -1,3 +1,7 @@
+import csv
+from collections import Counter
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Q
@@ -538,3 +542,135 @@ class TermDateDetailView(APIView):
         except TermDate.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Analytics / reporting ─────────────────────────────────────────────────────
+
+def _clamp_days(raw, default=30, lo=7, hi=365):
+    try:
+        return max(lo, min(hi, int(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
+class AnalyticsView(APIView):
+    """
+    GET /api/bookings/analytics/?days=30  — admin only.
+    Aggregate booking metrics for the reporting dashboard.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        days = _clamp_days(request.query_params.get('days'))
+        today = timezone.localdate()
+        since = today - timedelta(days=days - 1)
+
+        qs = Booking.objects.filter(date__gte=since, date__lte=today + timedelta(days=days))
+        # Window the "created" metrics on creation time instead of event date.
+        created_window = Booking.objects.filter(created_at__date__gte=since)
+
+        status_counts = Counter(qs.values_list('status', flat=True))
+        approved = status_counts.get(BookingStatus.APPROVED, 0)
+        pending = status_counts.get(BookingStatus.PENDING, 0)
+        rejected = status_counts.get(BookingStatus.REJECTED, 0)
+        cancelled = status_counts.get(BookingStatus.CANCELLED, 0)
+        total = sum(status_counts.values())
+
+        decided = approved + rejected
+        approval_rate = round(approved / decided * 100, 1) if decided else None
+
+        # Average approval turnaround (created → decided), in hours.
+        turnarounds = [
+            (b.decided_at - b.created_at).total_seconds() / 3600
+            for b in created_window.filter(decided_at__isnull=False).only('created_at', 'decided_at')
+        ]
+        avg_turnaround = round(sum(turnarounds) / len(turnarounds), 1) if turnarounds else None
+
+        # Check-in rate over approved bookings whose start is in the past.
+        now = timezone.now()
+        past_approved = qs.filter(status=BookingStatus.APPROVED, date__lte=today)
+        past_approved_count = past_approved.count()
+        checked_in = past_approved.filter(checked_in_at__isnull=False).count()
+        checkin_rate = round(checked_in / past_approved_count * 100, 1) if past_approved_count else None
+
+        # Busiest venues (approved/pending), top 6.
+        venue_counts = Counter(
+            qs.exclude(status=BookingStatus.CANCELLED).values_list('venue__name', flat=True)
+        )
+        top_venues = [{'venue': name, 'count': n} for name, n in venue_counts.most_common(6)]
+
+        # Peak start hours 08–19.
+        hour_counts = Counter(
+            b.start_time.hour for b in qs.exclude(status=BookingStatus.REJECTED).only('start_time')
+        )
+        peak_hours = [{'hour': h, 'count': hour_counts.get(h, 0)} for h in range(8, 20)]
+
+        # Bookings created per day (time series).
+        day_counts = Counter(
+            d.isoformat() for d in created_window.values_list('created_at__date', flat=True)
+        )
+        daily = []
+        for i in range(days):
+            d = (since + timedelta(days=i)).isoformat()
+            daily.append({'date': d, 'count': day_counts.get(d, 0)})
+
+        return Response({
+            'range_days': days,
+            'kpis': {
+                'total': total,
+                'approved': approved,
+                'pending': pending,
+                'rejected': rejected,
+                'cancelled': cancelled,
+                'approval_rate': approval_rate,
+                'avg_turnaround_hours': avg_turnaround,
+                'checkin_rate': checkin_rate,
+            },
+            'status_breakdown': [
+                {'status': BookingStatus.APPROVED, 'count': approved},
+                {'status': BookingStatus.PENDING, 'count': pending},
+                {'status': BookingStatus.REJECTED, 'count': rejected},
+                {'status': BookingStatus.CANCELLED, 'count': cancelled},
+            ],
+            'top_venues': top_venues,
+            'peak_hours': peak_hours,
+            'daily': daily,
+        })
+
+
+class BookingCsvExportView(APIView):
+    """
+    GET /api/bookings/export-csv/?days=90  — admin only.
+    Download bookings as CSV for offline reporting.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        days = _clamp_days(request.query_params.get('days'), default=90)
+        since = timezone.localdate() - timedelta(days=days - 1)
+        rows = (
+            Booking.objects
+            .select_related('user', 'venue', 'decided_by')
+            .filter(date__gte=since)
+            .order_by('-date', 'start_time')
+        )
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="venu-bookings.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'Reference', 'Venue', 'Date', 'Start', 'End', 'Status', 'Requested by',
+            'Email', 'Attendees', 'Purpose', 'Department', 'Decided by', 'Decided at', 'Checked in',
+        ])
+        for b in rows:
+            writer.writerow([
+                f'VENU-{b.pk:04d}', b.venue.name, b.date,
+                str(b.start_time)[:5], str(b.end_time)[:5], b.get_status_display(),
+                b.user.full_name or b.user.email, b.user.email,
+                b.attendee_count if b.attendee_count is not None else '',
+                b.purpose, b.department,
+                (b.decided_by.full_name or b.decided_by.email) if b.decided_by else '',
+                b.decided_at.isoformat() if b.decided_at else '',
+                b.checked_in_at.isoformat() if b.checked_in_at else '',
+            ])
+        return response

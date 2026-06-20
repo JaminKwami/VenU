@@ -10,6 +10,7 @@ import BookingPage from './pages/BookingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
 import ManageUsersPage from './pages/ManageUsersPage';
+import ReportsPage from './pages/ReportsPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import CheckInKioskPage from './pages/CheckInKioskPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -86,6 +87,7 @@ export default function App() {
             <Route element={<SuperAdminRoute />}>
               <Route path='/admin/venues'   element={<ManageVenuesPage />} />
               <Route path='/admin/users'    element={<ManageUsersPage />} />
+              <Route path='/admin/reports'  element={<ReportsPage />} />
               <Route path='/admin/settings' element={<AdminSettingsPage />} />
             </Route>
 
