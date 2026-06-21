@@ -49,7 +49,9 @@ export default function ManageUsersPage() {
   ) : null);
 
   useEffect(() => {
-    api.get('/auth/users/').then(r => setUsers(r.data.results ?? r.data)).catch(() => setUsers([]));
+    // TODO: Re-enable after debugging 401 logout issue
+    // api.get('/auth/users/').then(r => setUsers(r.data.results ?? r.data)).catch(() => setUsers([]));
+    setUsers([]);
   }, []);
 
   const all = users || [];
