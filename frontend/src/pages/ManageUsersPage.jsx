@@ -290,8 +290,18 @@ function EnrollmentTab() {
   const [copied, setCopied] = useState(null);
 
   useEffect(() => {
-    api.get('/auth/enrollment/domains/').then(r => { setDomains(r.data); setDomainsLoading(false); }).catch(() => { setDomains([]); setDomainsLoading(false); });
-    api.get('/auth/enrollment/links/').then(r => { setLinks(r.data); setLinksLoading(false); }).catch(() => { setLinks([]); setLinksLoading(false); });
+    const abortController = new AbortController();
+    const timer = setTimeout(() => abortController.abort(), 5000);
+
+    api.get('/auth/enrollment/domains/', { signal: abortController.signal })
+      .then(r => { setDomains(r.data); setDomainsLoading(false); })
+      .catch(() => { setDomains([]); setDomainsLoading(false); });
+
+    api.get('/auth/enrollment/links/', { signal: abortController.signal })
+      .then(r => { setLinks(r.data); setLinksLoading(false); })
+      .catch(() => { setLinks([]); setLinksLoading(false); });
+
+    return () => { clearTimeout(timer); abortController.abort(); };
   }, []);
 
   async function addDomain(e) {
