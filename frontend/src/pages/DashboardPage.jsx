@@ -7,7 +7,7 @@ import { useReveal } from '../hooks/useReveal';
 import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
 import CheckInModal from '../components/CheckInModal';
-import { dateChip, hm, hoursBetween, relTime, todayISO, STATUS_BADGE } from '../utils/venueUi';
+import { hm, hoursBetween, relTime, todayISO, prettyDate, venueGradient, STATUS_BADGE } from '../utils/venueUi';
 
 function greeting() {
   const h = new Date().getHours();
@@ -16,20 +16,8 @@ function greeting() {
   return 'Good evening';
 }
 
-function weekDays() {
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return {
-      label: d.toLocaleString('en', { weekday: 'short' }),
-      n: d.getDate(),
-      iso: d.toISOString().split('T')[0],
-      today: d.toDateString() === now.toDateString(),
-    };
-  });
+function initials(name) {
+  return (name || '?').split(/[\s@.]/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 }
 
 async function downloadIcs() {
@@ -42,6 +30,67 @@ async function downloadIcs() {
   URL.revokeObjectURL(url);
 }
 
+/* Month calendar — the signature widget of the new layout. Marks today and
+   any day that carries a booking (approved or pending). */
+function MonthCalendar({ bookedDays }) {
+  const now = new Date();
+  const [cur, setCur] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const todayKey = todayISO();
+
+  const first = new Date(cur.y, cur.m, 1);
+  const startOffset = (first.getDay() + 6) % 7;             // Monday-first
+  const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate();
+  const monthLabel = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const shift = n => setCur(c => {
+    let m = c.m + n, y = c.y;
+    if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+    return { y, m };
+  });
+  const keyFor = d => `${cur.y}-${String(cur.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  return (
+    <div className="card cal reveal" data-d="1">
+      <div className="cal-head">
+        <span className="cal-title">{monthLabel}</span>
+        <div className="cal-nav">
+          <button onClick={() => shift(-1)} aria-label="Previous month"><Icon.ChevronLeft width={15} height={15} /></button>
+          <button onClick={() => shift(1)} aria-label="Next month"><Icon.ChevronRight width={15} height={15} /></button>
+        </div>
+      </div>
+      <div className="cal-grid cal-dow">
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <span key={d}>{d}</span>)}
+      </div>
+      <div className="cal-grid">
+        {cells.map((d, i) => {
+          if (d === null) return <span key={i} className="cal-cell empty" />;
+          const k = keyFor(d);
+          const isToday = k === todayKey;
+          const booked = bookedDays[k];
+          return (
+            <span key={i} className={`cal-cell${isToday ? ' today' : ''}`}>
+              {d}
+              {booked && !isToday && <i className="cal-dot" />}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const PILLS = [
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'past', label: 'Past' },
+  { id: 'all', label: 'All' },
+];
+
 export default function DashboardPage() {
   usePageTitle('Dashboard');
   const navigate = useNavigate();
@@ -52,81 +101,61 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const [bookings, setBookings] = useState(null);
   const [qrBooking, setQrBooking] = useState(null);
-  const [histStatus, setHistStatus] = useState('All');
-  const [histQuery, setHistQuery] = useState('');
-  const revealRef = useReveal([bookings != null]);
+  const [filter, setFilter] = useState('upcoming');
+  const [query, setQuery] = useState('');
+  const [cancelling, setCancelling] = useState(null);
+  const revealRef = useReveal([bookings != null, filter]);
 
   useEffect(() => {
     api.get('/bookings/').then(r => setBookings(r.data.results ?? r.data)).catch(() => setBookings([]));
   }, []);
 
   const today = todayISO();
-  const upcoming = useMemo(
-    () => (bookings || [])
-      .filter(b => b.date >= today && (b.status === 'APPROVED' || b.status === 'PENDING'))
-      .sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time)),
-    [bookings, today],
-  );
-  const pendingCount = (bookings || []).filter(b => b.status === 'PENDING').length;
-  const approvedHours = (bookings || [])
-    .filter(b => b.status === 'APPROVED')
-    .reduce((acc, b) => acc + hoursBetween(b.start_time, b.end_time), 0);
-  const venuesUsed = new Set((bookings || []).filter(b => b.status === 'APPROVED').map(b => b.venue.id)).size;
+  const loading = bookings == null;
+  const all = bookings || [];
 
-  const mostBooked = useMemo(() => {
-    const counts = {};
-    (bookings || []).forEach(b => { counts[b.venue.name] = (counts[b.venue.name] || 0) + 1; });
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    return top ? { name: top[0], n: top[1] } : null;
-  }, [bookings]);
-
-  const activity = useMemo(
-    () => (bookings || [])
-      .map(b => {
-        if (b.status === 'APPROVED' && b.decided_at) {
-          return { color: 'var(--success)', html: <><b>{b.venue.name}</b> approved{b.decided_by ? ` by ${b.decided_by.full_name}` : ''}</>, ts: b.decided_at };
-        }
-        if (b.status === 'REJECTED' && b.decided_at) {
-          return { color: 'var(--danger)', html: <><b>{b.venue.name}</b> declined{b.rejection_reason ? ` — ${b.rejection_reason}` : ''}</>, ts: b.decided_at };
-        }
-        if (b.status === 'CANCELLED') {
-          return { color: 'var(--warn)', html: <><b>{b.purpose || b.venue.name}</b> cancelled</>, ts: b.updated_at };
-        }
-        return { color: 'var(--accent)', html: <>{isAdmin ? `${b.user.full_name} requested ` : 'You requested '}<b>{b.venue.name}</b></>, ts: b.created_at };
-      })
-      .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-      .slice(0, 5),
-    [bookings, isAdmin],
-  );
+  const upcomingCount = all.filter(b => b.date >= today && b.status === 'APPROVED').length;
+  const pendingCount = all.filter(b => b.status === 'PENDING').length;
+  const approvedHours = all.filter(b => b.status === 'APPROVED').reduce((a, b) => a + hoursBetween(b.start_time, b.end_time), 0);
 
   const bookedDays = useMemo(() => {
     const map = {};
-    (bookings || []).forEach(b => {
-      if (b.status === 'APPROVED') map[b.date] = 'var(--success)';
-      else if (b.status === 'PENDING' && !map[b.date]) map[b.date] = 'var(--warn)';
+    all.forEach(b => {
+      if (b.status === 'APPROVED') map[b.date] = 'approved';
+      else if (b.status === 'PENDING' && !map[b.date]) map[b.date] = 'pending';
     });
     return map;
-  }, [bookings]);
+  }, [all]);
 
-  const history = useMemo(() => {
-    const q = histQuery.toLowerCase();
-    return (bookings || [])
-      .filter(b =>
-        (histStatus === 'All' || b.status === histStatus) &&
-        (!q || (b.purpose || '').toLowerCase().includes(q) ||
-          b.venue.name.toLowerCase().includes(q) ||
-          (b.department || '').toLowerCase().includes(q)))
-      .sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time));
-  }, [bookings, histStatus, histQuery]);
+  const list = useMemo(() => {
+    const q = query.toLowerCase();
+    let arr = all.filter(b => !q
+      || (b.purpose || '').toLowerCase().includes(q)
+      || b.venue.name.toLowerCase().includes(q)
+      || (b.department || '').toLowerCase().includes(q));
+    if (filter === 'upcoming') arr = arr.filter(b => b.date >= today && ['APPROVED', 'PENDING'].includes(b.status));
+    else if (filter === 'pending') arr = arr.filter(b => b.status === 'PENDING');
+    else if (filter === 'approved') arr = arr.filter(b => b.status === 'APPROVED');
+    else if (filter === 'past') arr = arr.filter(b => b.date < today);
+    const desc = filter === 'past';
+    return arr.sort((a, b) => {
+      const ka = a.date + a.start_time, kb = b.date + b.start_time;
+      return desc ? kb.localeCompare(ka) : ka.localeCompare(kb);
+    });
+  }, [all, filter, query, today]);
 
-  const todayBookings = useMemo(
-    () => (bookings || [])
-      .filter(b => b.date === today && b.status === 'APPROVED')
-      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    [bookings, today],
+  const activity = useMemo(
+    () => all
+      .map(b => {
+        if (b.status === 'APPROVED' && b.decided_at) return { who: b.venue.name, sub: 'Approved', tone: 'ok', ts: b.decided_at };
+        if (b.status === 'REJECTED' && b.decided_at) return { who: b.venue.name, sub: 'Declined', tone: 'no', ts: b.decided_at };
+        if (b.status === 'CANCELLED') return { who: b.purpose || b.venue.name, sub: 'Cancelled', tone: 'mute', ts: b.updated_at };
+        return { who: b.venue.name, sub: isAdmin ? `Requested by ${b.user?.full_name || 'user'}` : 'You requested', tone: 'pend', ts: b.created_at };
+      })
+      .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+      .slice(0, 5),
+    [all, isAdmin],
   );
-
-  const [cancelling, setCancelling] = useState(null);
 
   async function cancelBooking(b) {
     if (!confirm(`Cancel your booking of ${b.venue.name} on ${b.date}?`)) return;
@@ -142,19 +171,10 @@ export default function DashboardPage() {
   }
 
   function tryAgain(b) {
-    navigate('/book', {
-      state: {
-        venueId: b.venue.id,
-        venueName: b.venue.name,
-        openAtStep: 2,
-      },
-    });
+    navigate('/book', { state: { venueId: b.venue.id, venueName: b.venue.name, openAtStep: 2 } });
   }
 
-  const loading = bookings == null;
   const firstName = (user?.full_name || user?.email || '').split(/[\s@]/)[0];
-  const days = weekDays();
-  const upcomingCount = upcoming.filter(b => b.status === 'APPROVED').length;
 
   return (
     <>
@@ -164,258 +184,158 @@ export default function DashboardPage() {
         <h1>{greeting()}, {firstName}.</h1>
         <p>
           {loading ? 'Loading…' : isAdmin ? (
-            <>{pendingCount > 0
-              ? <><b>{pendingCount} booking {pendingCount === 1 ? 'request' : 'requests'}</b> {pendingCount === 1 ? 'needs' : 'need'} your approval today.</>
-              : <>Queue is clear — no pending requests. {upcomingCount > 0 && <><b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> scheduled.</>}</>
-            }</>
+            pendingCount > 0
+              ? <><b>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> {pendingCount === 1 ? 'needs' : 'need'} your approval.</>
+              : <>Queue is clear.{upcomingCount > 0 && <> <b>{upcomingCount} confirmed</b> coming up.</>}</>
           ) : (
-            <>You have <b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up{pendingCount > 0 ? <> and <b>{pendingCount} {pendingCount === 1 ? 'request' : 'requests'}</b> awaiting approval</> : ''}.</>
+            <>You have <b>{upcomingCount} confirmed {upcomingCount === 1 ? 'booking' : 'bookings'}</b> coming up{pendingCount > 0 ? <> and <b>{pendingCount} awaiting approval</b></> : ''}.</>
           )}
         </p>
       </div>
 
-      <div className="stat-ribbon reveal">
-        <div className="stat-seg">
-          <div className="stat-seg-n">{loading ? '—' : upcomingCount}</div>
-          <div className="stat-seg-label">Upcoming</div>
-        </div>
-        <div className="stat-seg">
-          <div className="stat-seg-n">{loading ? '—' : pendingCount}</div>
-          <div className="stat-seg-label">Pending</div>
-        </div>
-        <div className="stat-seg">
-          <div className="stat-seg-n">
-            {loading ? '—' : Math.round(approvedHours)}
-            {!loading && <span style={{ fontSize: '1.1rem', fontWeight: 400, letterSpacing: 0 }}>h</span>}
-          </div>
-          <div className="stat-seg-label">Term total</div>
-        </div>
-        <div className="stat-seg">
-          <div className="stat-seg-n" style={{ fontSize: mostBooked ? '1rem' : undefined, letterSpacing: mostBooked ? '-.01em' : undefined, marginTop: mostBooked ? '.4rem' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {loading ? '—' : (mostBooked?.name || '—')}
-          </div>
-          <div className="stat-seg-label">{mostBooked ? `Most used · ${mostBooked.n} sessions` : 'Most used'}</div>
+      {/* Filter pills (reference: Time / Level / Language / Type) */}
+      <div className="filter-pills reveal">
+        {PILLS.map(p => (
+          <button key={p.id} className={`fp${filter === p.id ? ' on' : ''}`} onClick={() => setFilter(p.id)}>
+            {p.label}
+          </button>
+        ))}
+        <div className="search-box fp-search">
+          <Icon.Search />
+          <input className="input" placeholder="Search bookings…" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
       </div>
 
       <div className="dash-grid">
+        {/* Left — card-row list */}
         <div className="stack" style={{ gap: '1.4rem' }}>
           {!isAdmin && <QuickBook />}
-          <div className="card reveal">
-            <div className="card-head">
-              <h3>Upcoming bookings</h3>
-              <Link className="btn btn-outline btn-sm" to="/venues">Book another</Link>
-            </div>
-            <div>
-              {loading && [1, 2, 3].map(i => (
-                <div key={i} className="booking-item"><div className="skeleton" style={{ width: 56, height: 56 }} /><div style={{ flex: 1 }}><div className="skeleton" style={{ height: 14, width: '60%', marginBottom: 6 }} /><div className="skeleton" style={{ height: 12, width: '40%' }} /></div></div>
-              ))}
-              {!loading && upcoming.length === 0 && (
-                <div className="empty">
-                  <span className="ic"><Icon.Calendar width={22} height={22} /></span>
-                  <span>No upcoming bookings. Ready to plan something?</span>
-                  <Link className="btn btn-primary btn-sm" to="/book">New booking</Link>
-                </div>
-              )}
-              {!loading && upcoming.slice(0, 5).map(b => {
-                const chip = dateChip(b.date);
-                const [cls, label] = STATUS_BADGE[b.status];
-                return (
-                  <div className="booking-item" key={b.id}>
-                    <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
-                    <div className="bi-main">
-                      <div className="t">{b.purpose || b.venue.name}</div>
-                      <div className="s">
-                        {b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)} · <span className="mono" style={{ fontSize: '.78rem' }}>{b.venue.capacity} cap</span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexShrink: 0 }}>
-                      {b.status === 'APPROVED' && b.check_in_token && (
-                        <button
-                          className={`bi-checkin${b.checked_in_at ? ' done' : ''}`}
-                          title={b.checked_in_at ? 'Checked in — click to view code' : 'View check-in QR code'}
-                          aria-label="View check-in code"
-                          onClick={() => setQrBooking(b)}
-                        >
-                          <Icon.QR width={12} height={12} />
-                          {b.checked_in_at ? 'Checked in' : 'Check in'}
-                        </button>
-                      )}
-                      {!b.checked_in_at && (
-                        <button
-                          className="btn btn-danger btn-sm"
-                          style={{ fontSize: '.75rem', padding: '.3em .7em' }}
-                          disabled={cancelling === b.id}
-                          onClick={() => cancelBooking(b)}
-                        >
-                          {cancelling === b.id ? '…' : 'Cancel'}
-                        </button>
-                      )}
-                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
-          <div className="card card-pad reveal">
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.15rem' }}>This week</h3>
-              <span className="label">{days[0].label} {days[0].n} – {days[6].label} {days[6].n}</span>
-            </div>
-            <div className="week-strip">
-              {days.map(d => (
-                <div key={d.iso} className={`wd${d.today ? ' today' : ''}`}>
-                  <div className="wl">{d.label}</div>
-                  <div className="wn">{d.n}</div>
-                  {(d.today || bookedDays[d.iso]) && (
-                    <div className="wdot" style={{ background: 'var(--ink-28)' }} />
-                  )}
+          <div className="lo-list">
+            {loading && [1, 2, 3].map(i => (
+              <div className="lo-card" key={i}>
+                <div className="skeleton" style={{ width: 84, height: 84, borderRadius: 'var(--r-lg)' }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton" style={{ height: 16, width: '55%', marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 12, width: '75%' }} />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card reveal">
-            <div className="card-head" style={{ gap: '.8rem', flexWrap: 'wrap' }}>
-              <h3>All bookings</h3>
-              <div className="row" style={{ gap: '.5rem' }}>
-                <button className="btn btn-outline btn-sm" onClick={() => downloadIcs().catch(() => {})}>
-                  <Icon.Calendar width={14} height={14} /> Export .ics
-                </button>
-                <input
-                  className="input" style={{ maxWidth: 180, padding: '.45rem .8rem', fontSize: '.85rem' }}
-                  placeholder="Search…" value={histQuery} onChange={e => setHistQuery(e.target.value)}
-                />
-                <select className="select" style={{ maxWidth: 130, padding: '.45rem 2.2rem .45rem .8rem', fontSize: '.85rem' }} value={histStatus} onChange={e => setHistStatus(e.target.value)}>
-                  <option>All</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
               </div>
-            </div>
-            <div>
-              {!loading && history.length === 0 && (
-                <div className="empty" style={{ padding: '2rem 1rem' }}>
-                  <span>{histQuery || histStatus !== 'All' ? 'Nothing matches those filters.' : 'No bookings yet.'}</span>
-                </div>
-              )}
-              {!loading && history.slice(0, 8).map(b => {
-                const chip = dateChip(b.date);
-                const [cls, label] = STATUS_BADGE[b.status];
-                const canCancel = ['PENDING', 'APPROVED'].includes(b.status) && b.date >= today;
-                const canRetry = b.status === 'REJECTED';
-                return (
-                  <div className="booking-item" key={b.id}>
-                    <div className="bi-date"><span className="d">{chip.d}</span><span className="m">{chip.m}</span></div>
-                    <div className="bi-main">
-                      <div className="t">{b.purpose || b.venue.name}</div>
-                      <div className="s">{b.venue.name} · {hm(b.start_time)}–{hm(b.end_time)}{b.rejection_reason ? <> · <span style={{ color: 'var(--danger)', fontSize: '.8rem' }}>{b.rejection_reason}</span></> : null}</div>
+            ))}
+
+            {!loading && list.length === 0 && (
+              <div className="card empty" style={{ padding: '3rem 1rem' }}>
+                <span className="ic"><Icon.Calendar width={22} height={22} /></span>
+                <span>{query || filter !== 'upcoming' ? 'Nothing matches those filters.' : 'No upcoming bookings. Ready to plan something?'}</span>
+                <Link className="btn btn-primary btn-sm" to="/book">New booking</Link>
+              </div>
+            )}
+
+            {!loading && list.slice(0, 10).map(b => {
+              const [cls, label] = STATUS_BADGE[b.status];
+              const canCancel = ['PENDING', 'APPROVED'].includes(b.status) && b.date >= today && !b.checked_in_at;
+              return (
+                <div className="lo-card" key={b.id}>
+                  <div className="lo-thumb" style={{ background: venueGradient(b.venue.id) }}>
+                    <Icon.Venues />
+                  </div>
+                  <div className="lo-body">
+                    <div className="lo-title">{b.purpose || b.venue.name}</div>
+                    <div className="lo-desc">
+                      {b.venue.name}{b.venue.building ? ` · ${b.venue.building}` : ''} · {prettyDate(b.date)} · {hm(b.start_time)}–{hm(b.end_time)}
+                      {isAdmin && b.user ? ` · ${b.user.full_name || b.user.email}` : ''}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexShrink: 0 }}>
-                      {canRetry && (
-                        <button className="btn btn-outline btn-sm" style={{ fontSize: '.75rem', padding: '.3em .7em' }} onClick={() => tryAgain(b)}>
-                          Try again →
+                    <div className="lo-meta">
+                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                      {b.status === 'APPROVED' && b.check_in_token && (
+                        <button className={`bi-checkin${b.checked_in_at ? ' done' : ''}`} onClick={() => setQrBooking(b)}>
+                          <Icon.QR width={12} height={12} />{b.checked_in_at ? 'Checked in' : 'Check in'}
                         </button>
                       )}
                       {canCancel && (
-                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.75rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => cancelBooking(b)}>
+                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => cancelBooking(b)}>
                           {cancelling === b.id ? '…' : 'Cancel'}
                         </button>
                       )}
-                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                      {b.status === 'REJECTED' && (
+                        <button className="btn btn-outline btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} onClick={() => tryAgain(b)}>
+                          Try again →
+                        </button>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <Link className="lo-go" to={`/venues/${b.venue.id}`} aria-label={`Open ${b.venue.name}`}>
+                    <Icon.Arrow />
+                  </Link>
+                </div>
+              );
+            })}
+
+            {!loading && list.length > 0 && (
+              <button className="btn btn-outline btn-sm lo-export" onClick={() => downloadIcs().catch(() => {})}>
+                <Icon.Calendar width={14} height={14} /> Export .ics
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Right — calendar + lists */}
         <div className="stack" style={{ gap: '1.4rem' }}>
-          <div className="reveal" data-d="1">
+          <MonthCalendar bookedDays={bookedDays} />
+
+          <div className="stat-trio reveal" data-d="2">
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : upcomingCount}</div><div className="stat-seg-label">Upcoming</div></div>
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : pendingCount}</div><div className="stat-seg-label">Pending</div></div>
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : Math.round(approvedHours)}<span style={{ fontSize: '1rem', fontWeight: 400 }}>h</span></div><div className="stat-seg-label">Term</div></div>
+          </div>
+
+          <div className="card reveal" data-d="3">
+            <div className="card-head">
+              <h3>{isAdmin ? 'Recent activity' : 'Your activity'}</h3>
+              {isAdmin && <Link className="btn btn-outline btn-sm" to="/admin/approvals">Approvals</Link>}
+            </div>
+            <div className="rail-list" style={{ padding: '0 1.3rem 1rem' }}>
+              {loading && [1, 2, 3].map(i => (
+                <div className="rl-item" key={i}><div className="skeleton" style={{ width: 38, height: 38, borderRadius: '50%' }} /><div style={{ flex: 1 }}><div className="skeleton" style={{ height: 12, width: '60%' }} /></div></div>
+              ))}
+              {!loading && activity.length === 0 && (
+                <div className="empty" style={{ padding: '1.5rem 1rem' }}><span>No activity yet.</span></div>
+              )}
+              {!loading && activity.map((a, i) => (
+                <div className="rl-item" key={i}>
+                  <span className="rl-av">{initials(a.who)}</span>
+                  <div className="rl-main">
+                    <div className="rl-nm">{a.who}</div>
+                    <div className="rl-sub">{a.sub} · {relTime(a.ts)}</div>
+                  </div>
+                  <span className={`rl-dot tone-${a.tone}`} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="reveal" data-d="4">
             <div className="cmd-list">
               <Link className="cmd-item" to="/book">
-                <div>
-                  <div className="cmd-label">Book a room</div>
-                  <div className="cmd-sub">
-                    {upcomingCount > 0 ? `${upcomingCount} booking${upcomingCount !== 1 ? 's' : ''} scheduled` : 'No upcoming bookings'}
-                  </div>
-                </div>
+                <div><div className="cmd-label">Book a room</div><div className="cmd-sub">{upcomingCount > 0 ? `${upcomingCount} scheduled` : 'No upcoming bookings'}</div></div>
                 <span className="cmd-arrow">›</span>
               </Link>
               <Link className="cmd-item" to="/venues">
-                <div>
-                  <div className="cmd-label">Browse venues</div>
-                  <div className="cmd-sub">Lecture halls · Seminar rooms · Labs</div>
-                </div>
+                <div><div className="cmd-label">Browse venues</div><div className="cmd-sub">Lecture halls · Seminar rooms · Labs</div></div>
                 <span className="cmd-arrow">›</span>
               </Link>
               {isAdmin && (
                 <Link className="cmd-item" to="/admin/approvals">
-                  <div>
-                    <div className="cmd-label">Review approvals</div>
-                    <div className={`cmd-sub${pendingCount > 0 ? ' urgent' : ''}`}>
-                      {pendingCount > 0 ? `${pendingCount} waiting for decision` : 'No pending requests'}
-                    </div>
-                  </div>
+                  <div><div className="cmd-label">Review approvals</div><div className={`cmd-sub${pendingCount > 0 ? ' urgent' : ''}`}>{pendingCount > 0 ? `${pendingCount} waiting` : 'No pending requests'}</div></div>
                   <span className="cmd-arrow">›</span>
                 </Link>
               )}
-            </div>
-          </div>
-
-          {isAdmin && (
-            <div className="card reveal" data-d="2">
-              <div className="card-head"><h3>Today's schedule</h3><span className="label">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span></div>
-              {loading && [1, 2, 3].map(i => (
-                <div key={i} className="sched-row"><div className="skeleton" style={{ width: '100%', height: 13 }} /></div>
-              ))}
-              {!loading && todayBookings.length === 0 && (
-                <div className="empty" style={{ padding: '1.5rem 1rem' }}><span>No bookings scheduled today.</span></div>
-              )}
-              {!loading && todayBookings.map(b => (
-                <div className="sched-row" key={b.id}>
-                  <span className="sched-time">{hm(b.start_time)}</span>
-                  <span className="sched-bar" />
-                  <div className="sched-info">
-                    <div className="sched-venue">{b.venue.name}</div>
-                    <div className="sched-who">{b.user?.full_name || b.user?.email} · {hm(b.start_time)}–{hm(b.end_time)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="card reveal" data-d="3">
-            <div className="card-head"><h3>Recent activity</h3></div>
-            <div className="activity">
-              {loading && [1, 2, 3].map(i => (
-                <div key={i} className="act-item" style={{ gap: 0 }}><div className="skeleton" style={{ width: '100%', height: 14 }} /></div>
-              ))}
-              {!loading && activity.length === 0 && (
-                <div className="empty" style={{ padding: '2rem 1rem' }}><span>No activity yet.</span></div>
-              )}
-              {!loading && activity.map((a, i) => (
-                <div className="act-item" key={i} style={{ paddingLeft: '1.3rem' }}>
-                  <div>
-                    <div className="at">{a.html}</div>
-                    <div className="ax">{relTime(a.ts)}</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    {qrBooking && (
-      <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />
-    )}
+    {qrBooking && <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />}
     </>
   );
 }
@@ -492,11 +412,7 @@ function QuickBook() {
             );
           })}
         </div>
-        <button
-          className="btn btn-primary btn-block"
-          disabled={!venueId || hour === null}
-          onClick={go}
-        >
+        <button className="btn btn-primary btn-block" disabled={!venueId || hour === null} onClick={go}>
           Continue to request <Icon.Arrow width={15} height={15} />
         </button>
         {selectedVenue && hour !== null && !isBusy(hour) && (

@@ -7,12 +7,13 @@ import { persist, createJSONStorage } from 'zustand/middleware';
  * so the attributes are on <html> before first paint (no FOUC).
  */
 
+// Monochrome tones — onyx (default) plus graphite / slate / taupe / ash.
 export const ACCENTS = [
-  { id: 'cobalt', color: '#2a4ddb' },
-  { id: 'coral', color: '#ff5a36' },
-  { id: 'evergreen', color: '#1f6c52' },
-  { id: 'violet', color: '#6b3df0' },
-  { id: 'amber', color: '#d2861a' },
+  { id: 'cobalt', color: '#1c1c1e' },     // Onyx (default)
+  { id: 'coral', color: '#3f3f46' },      // Graphite
+  { id: 'evergreen', color: '#475569' },  // Slate
+  { id: 'violet', color: '#57534e' },     // Taupe
+  { id: 'amber', color: '#525252' },      // Ash
 ];
 
 function applyToHtml({ theme, accent, motion }) {

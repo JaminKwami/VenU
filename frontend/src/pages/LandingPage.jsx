@@ -26,9 +26,9 @@ const STEPS = [
 const SPACE_TYPES = ['Lecture halls', 'Design studios', 'Research labs', 'Music rooms', 'Sports courts', 'Quad lawns', 'Seminar pods', 'Maker spaces'];
 
 const CATEGORIES = [
-  { title: 'Lecture halls & auditoria', meta: 'Keynotes · showcases · lectures', tags: 'Tiered · AV · Capacity-checked', g: 'linear-gradient(150deg,#2D4EAA,#1C3A7A)', badge: ['badge-approved', 'Bookable'] },
-  { title: 'Studios & labs', meta: 'Crits · sessions · workshops', tags: 'Amenities listed per room', g: 'linear-gradient(150deg,#5C3A1A,#C8460A)', badge: ['badge-approved', 'Bookable'] },
-  { title: 'Outdoor & event spaces', meta: 'Fairs · socials · ceremonies', tags: 'Big capacities · conflict-free', g: 'linear-gradient(150deg,#1C4A38,#2A6B52)', badge: ['badge-approved', 'Bookable'] },
+  { title: 'Lecture halls & auditoria', meta: 'Keynotes · showcases · lectures', tags: 'Tiered · AV · Capacity-checked', g: 'linear-gradient(150deg,#27272a,#0f0f10)', badge: ['badge-approved', 'Bookable'] },
+  { title: 'Studios & labs', meta: 'Crits · sessions · workshops', tags: 'Amenities listed per room', g: 'linear-gradient(150deg,#52525b,#27272a)', badge: ['badge-approved', 'Bookable'] },
+  { title: 'Outdoor & event spaces', meta: 'Fairs · socials · ceremonies', tags: 'Big capacities · conflict-free', g: 'linear-gradient(150deg,#334155,#0f172a)', badge: ['badge-approved', 'Bookable'] },
 ];
 
 export default function LandingPage() {
@@ -100,7 +100,7 @@ export default function LandingPage() {
             <div className="hero-stage" aria-hidden="true">
               <div className="float-card fc-1" data-parallax="0.16">
                 <div className="fc-top"><span className="fc-name">Auditorium</span><span className="badge badge-approved"><span className="dot" />Approved</span></div>
-                <div className="fc-img"><div className="grad" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(150deg,#2D4EAA,#1C3A7A)' }} /><div className="iso" /></div>
+                <div className="fc-img"><div className="grad" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(150deg,#27272a,#0f0f10)' }} /><div className="iso" /></div>
                 <div className="row" style={{ justifyContent: 'space-between' }}><span className="fc-coord">CAP 420 · 14:00–16:00</span><span className="fc-coord" style={{ color: 'var(--accent-ink)' }}>HELD</span></div>
               </div>
               <div className="float-card fc-2" data-parallax="0.30">

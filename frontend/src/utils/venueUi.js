@@ -1,14 +1,15 @@
 /* Shared presentation helpers for the Blueprint screens. */
 
+/* Monochrome charcoal→ash gradients — varied tones, all within palette. */
 const GRADIENTS = [
-  'linear-gradient(150deg,#2D4EAA,#1C3A7A)',
-  'linear-gradient(150deg,#1C4A38,#2A6B52)',
-  'linear-gradient(150deg,#5C3A1A,#8B5C2A)',
-  'linear-gradient(150deg,#2D4EAA,#1C4A38)',
-  'linear-gradient(150deg,#3D2A6B,#2D4EAA)',
-  'linear-gradient(150deg,#6B3A1A,#C8460A)',
-  'linear-gradient(150deg,#1C4A38,#3D6B40)',
-  'linear-gradient(150deg,#4A3820,#7A6040)',
+  'linear-gradient(150deg,#27272a,#0f0f10)',
+  'linear-gradient(150deg,#3f3f46,#1c1c1e)',
+  'linear-gradient(150deg,#52525b,#27272a)',
+  'linear-gradient(150deg,#334155,#0f172a)',
+  'linear-gradient(150deg,#44403c,#1c1917)',
+  'linear-gradient(150deg,#1c1c1e,#3f3f46)',
+  'linear-gradient(150deg,#475569,#1e293b)',
+  'linear-gradient(150deg,#57534e,#292524)',
 ];
 
 export function venueGradient(id) {

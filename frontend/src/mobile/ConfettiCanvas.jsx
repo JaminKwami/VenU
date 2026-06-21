@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
  * 90 particles, gravity easing, ~90 frames. Fires once on mount.
  * Respects prefers-reduced-motion (skips the animation).
  */
-const COLORS = ['#2D4EAA', '#5A7FE0', '#F7F6F2', '#1f7a4d', '#a9711a', '#ffffff'];
+const COLORS = ['#18181b', '#3f3f46', '#71717a', '#a1a1aa', '#d4d4d8', '#ffffff'];
 
 export default function ConfettiCanvas() {
   const canvasRef = useRef(null);

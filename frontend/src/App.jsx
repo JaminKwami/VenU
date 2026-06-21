@@ -88,7 +88,7 @@ export default function App() {
           style={{
             width: 32, height: 32, borderRadius: '50%',
             border: '3px solid var(--ink-15, #e2e2e2)',
-            borderTopColor: 'var(--accent, #2D4EAA)',
+            borderTopColor: 'var(--accent, #18181B)',
             animation: 'venu-spin 0.8s linear infinite',
           }}
         />

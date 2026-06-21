@@ -66,9 +66,9 @@
 .m-tab-cta { flex: none; width: 72px; }
 .m-book-fab {
   width: 54px; height: 54px; border-radius: 50%;
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--accent-contrast);
   display: grid; place-items: center;
-  box-shadow: 0 4px 16px rgba(45, 78, 170, .40);
+  box-shadow: 0 6px 18px -4px rgba(24, 24, 27, .40);
   margin-top: -12px;
   transition: transform .4s var(--m-spring);
 }
@@ -88,7 +88,7 @@
   transition: transform .35s var(--m-spring), background .2s, box-shadow .2s;
 }
 .m-app .btn:active { transform: scale(.96); }
-.m-app .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 16px rgba(45, 78, 170, .32); }
+.m-app .btn-primary { background: var(--accent); color: var(--accent-contrast); box-shadow: 0 4px 16px -4px rgba(24, 24, 27, .32); }
 .m-app .btn-primary:disabled { opacity: .5; box-shadow: none; }
 .m-app .btn-ghost { background: var(--surface); border-color: var(--line-2); color: var(--ink); }
 .m-app .btn-success { background: var(--success-soft); color: var(--success); }
@@ -280,7 +280,7 @@
 .m-app .m-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width%3D'12' height%3D'12' viewBox%3D'0 0 12 12'%3E%3Cpath d%3D'M3 4.5L6 7.5L9 4.5' stroke%3D'%23999' stroke-width%3D'1.4' fill%3D'none'%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 .m-time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 4px 20px; }
 .m-time-btn { height: 48px; border-radius: 16px; font-size: 13px; font-weight: 800; background: var(--surface); border: 1.5px solid var(--line-2); color: var(--ink); transition: all .3s var(--m-spring); }
-.m-time-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 4px 12px rgba(45,78,170,.32); transform: scale(1.04); }
+.m-time-btn.on { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); box-shadow: 0 4px 12px -3px rgba(24,24,27,.32); transform: scale(1.04); }
 .m-time-btn.busy { background: var(--canvas-2); color: var(--ink-45); text-decoration: line-through; }
 .m-conflict-box { margin: 12px 20px 0; padding: 12px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; display: flex; gap: 10px; align-items: flex-start; }
 .m-conflict-box.ok { background: var(--success-soft); color: var(--success); }
