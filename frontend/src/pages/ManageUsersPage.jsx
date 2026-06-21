@@ -274,10 +274,6 @@ export default function ManageUsersPage() {
 }
 
 function EnrollmentTab() {
-  const [domains, setDomains] = useState([]);
-  const [links, setLinks] = useState([]);
-  const [domainsLoading, setDomainsLoading] = useState(true);
-  const [linksLoading, setLinksLoading] = useState(true);
   const [newDomain, setNewDomain] = useState('');
   const [newDomainRole, setNewDomainRole] = useState('STUDENT');
   const [addingDomain, setAddingDomain] = useState(false);
@@ -289,29 +285,14 @@ function EnrollmentTab() {
   const [linkError, setLinkError] = useState('');
   const [copied, setCopied] = useState(null);
 
-  useEffect(() => {
-    const abortController = new AbortController();
-    const timer = setTimeout(() => abortController.abort(), 5000);
-
-    api.get('/auth/enrollment/domains/', { signal: abortController.signal })
-      .then(r => { setDomains(r.data); setDomainsLoading(false); })
-      .catch(() => { setDomains([]); setDomainsLoading(false); });
-
-    api.get('/auth/enrollment/links/', { signal: abortController.signal })
-      .then(r => { setLinks(r.data); setLinksLoading(false); })
-      .catch(() => { setLinks([]); setLinksLoading(false); });
-
-    return () => { clearTimeout(timer); abortController.abort(); };
-  }, []);
-
   async function addDomain(e) {
     e.preventDefault();
     setAddingDomain(true);
     setDomainError('');
     try {
-      const res = await api.post('/auth/enrollment/domains/', { domain: newDomain, default_role: newDomainRole });
-      setDomains(prev => [...(prev || []), res.data]);
+      await api.post('/auth/enrollment/domains/', { domain: newDomain, default_role: newDomainRole });
       setNewDomain('');
+      setDomainError('');
     } catch (err) {
       setDomainError(err.response?.data?.domain?.[0] || err.response?.data?.detail || 'Failed to add domain.');
     } finally {
@@ -319,29 +300,19 @@ function EnrollmentTab() {
     }
   }
 
-  async function removeDomain(id) {
-    await api.delete(`/auth/enrollment/domains/${id}/`);
-    setDomains(prev => prev.filter(d => d.id !== id));
-  }
-
   async function createLink(e) {
     e.preventDefault();
     setAddingLink(true);
     setLinkError('');
     try {
-      const res = await api.post('/auth/enrollment/links/', { default_role: newLinkRole, uses_limit: Number(newLinkLimit), note: newLinkNote });
-      setLinks(prev => [res.data, ...(prev || [])]);
+      await api.post('/auth/enrollment/links/', { default_role: newLinkRole, uses_limit: Number(newLinkLimit), note: newLinkNote });
       setNewLinkNote('');
+      setLinkError('');
     } catch (err) {
       setLinkError(err.response?.data?.detail || 'Failed to create link.');
     } finally {
       setAddingLink(false);
     }
-  }
-
-  async function toggleLink(link) {
-    const res = await api.patch(`/auth/enrollment/links/${link.id}/`, { is_active: !link.is_active });
-    setLinks(prev => prev.map(l => l.id === link.id ? res.data : l));
   }
 
   function copyLink(token) {
@@ -357,15 +328,6 @@ function EnrollmentTab() {
       <div className="card card-pad reveal">
         <h3 style={{ marginBottom: '.3rem' }}>Allowed email domains</h3>
         <p className="muted" style={{ fontSize: '.86rem', marginBottom: '1.2rem' }}>Anyone with a matching email domain can self-register without an admin invite.</p>
-        {domainsLoading && <p className="muted" style={{ fontSize: '.86rem' }}>Loading…</p>}
-        {!domainsLoading && (domains || []).map(d => (
-          <div key={d.id} className="enrollment-row">
-            <span className="enr-domain">@{d.domain}</span>
-            <span className={`role-sel ${d.default_role.toLowerCase()}`} style={{ pointerEvents: 'none' }}>{ROLE_LABEL[d.default_role]}</span>
-            <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => removeDomain(d.id)}>Remove</button>
-          </div>
-        ))}
-        {domains.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No domains added yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap' }} onSubmit={addDomain}>
           <input className="input" style={{ flex: '1 1 180px' }} placeholder="e.g. campus.edu" value={newDomain} onChange={e => setNewDomain(e.target.value)} />
           <select className="select" style={{ maxWidth: 140 }} value={newDomainRole} onChange={e => setNewDomainRole(e.target.value)}>
@@ -379,34 +341,6 @@ function EnrollmentTab() {
       <div className="card card-pad reveal">
         <h3 style={{ marginBottom: '.3rem' }}>Enrolment links</h3>
         <p className="muted" style={{ fontSize: '.86rem', marginBottom: '1.2rem' }}>Share these links to let people self-register with a specific role. Optional use limits and expiry.</p>
-        {linksLoading && <p className="muted" style={{ fontSize: '.86rem' }}>Loading…</p>}
-        {!linksLoading && (links || []).map(l => (
-          <div key={l.id} className={`enrollment-row${!l.is_valid ? ' dim' : ''}`}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '.72rem', color: 'var(--ink-45)', marginBottom: '.2rem' }}>
-                {l.note || `Link #${l.id}`}
-              </div>
-              <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap' }}>
-                <span className={`role-sel ${l.default_role.toLowerCase()}`} style={{ pointerEvents: 'none' }}>{ROLE_LABEL[l.default_role]}</span>
-                <span className="badge badge-neutral">{l.uses_limit ? `${l.uses_count}/${l.uses_limit} uses` : `${l.uses_count} uses`}</span>
-                {!l.is_valid && <span className="badge badge-cancelled">Inactive</span>}
-              </div>
-            </div>
-            <button
-              className="btn btn-outline btn-sm"
-              style={{ fontSize: '.75rem' }}
-              onClick={() => copyLink(l.token)}
-            >
-              {copied === l.token ? 'Copied!' : 'Copy link'}
-            </button>
-            <button
-              className={`toggle${l.is_active ? ' on' : ''}`}
-              title={l.is_active ? 'Deactivate' : 'Activate'}
-              onClick={() => toggleLink(l)}
-            />
-          </div>
-        ))}
-        {links.length === 0 && <p className="muted" style={{ fontSize: '.86rem' }}>No enrolment links yet.</p>}
         <form className="row" style={{ gap: '.7rem', marginTop: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={createLink}>
           <div className="field" style={{ flex: '1 1 140px', marginBottom: 0 }}>
             <label style={{ fontSize: '.72rem' }}>Role</label>
