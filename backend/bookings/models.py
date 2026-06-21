@@ -52,6 +52,16 @@ class Booking(models.Model):
     # Check-in: token shown to booker; checked_in_at stamped on arrival.
     check_in_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     checked_in_at = models.DateTimeField(null=True, blank=True)
+    # Front-desk key handling: who checked them in (the desk staff, if any) and
+    # when the physical key was handed back. Key is "out" while checked_in_at is
+    # set and key_returned_at is null.
+    checked_in_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='checked_in_bookings',
+    )
+    key_returned_at = models.DateTimeField(null=True, blank=True)
     # Audit trail: which admin decided, and when.
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -11,6 +11,7 @@ import VenueCalendarPage from './pages/VenueCalendarPage';
 import BookingPage from './pages/BookingPage';
 import TimetablePage from './pages/TimetablePage';
 import ApprovalsPage from './pages/ApprovalsPage';
+import FrontDeskPage from './pages/FrontDeskPage';
 import ManageVenuesPage from './pages/ManageVenuesPage';
 import ManageUsersPage from './pages/ManageUsersPage';
 import ReportsPage from './pages/ReportsPage';
@@ -27,6 +28,7 @@ import VenueGrid from './mobile/VenueGrid';
 import BookFlow from './mobile/BookFlow';
 import MyBookings from './mobile/MyBookings';
 import ApprovalQueue from './mobile/ApprovalQueue';
+import FrontDesk from './mobile/FrontDesk';
 import ProfileScreen from './mobile/ProfileScreen';
 import VenueDetail from './mobile/VenueDetail';
 
@@ -123,6 +125,7 @@ export default function App() {
               {/* Mobile approval queue lives at /approvals; desktop uses /admin/approvals */}
               <Route path='/approvals' element={<Responsive mobile={<ApprovalQueue />} desktop={<Navigate to='/admin/approvals' replace />} />} />
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
+              <Route path='/desk' element={<Responsive mobile={<FrontDesk />} desktop={<FrontDeskPage />} />} />
             </Route>
 
             {/* ADMIN only */}

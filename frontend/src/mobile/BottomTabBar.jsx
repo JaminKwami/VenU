@@ -5,7 +5,7 @@ import { Icon } from '../components/icons';
  * Bottom tab bar with a centre "Book" FAB.
  * Tab order is role-aware:
  *   Student/Staff:  Home | Venues | [+] | Bookings | Profile
- *   Admin/Recept.:  Home | Queue  | [+] | Venues   | Profile
+ *   Admin/Recept.:  Home | Desk   | [+] | Queue    | Profile
  */
 const STUDENT_TABS = [
   { id: 'home',     label: 'Home',     Icon: Icon.Home,     path: '/dashboard' },
@@ -17,9 +17,9 @@ const STUDENT_TABS = [
 
 const ADMIN_TABS = [
   { id: 'home',     label: 'Home',    Icon: Icon.Home,      path: '/dashboard' },
-  { id: 'queue',    label: 'Queue',   Icon: Icon.Approvals, path: '/approvals', badge: true },
+  { id: 'desk',     label: 'Desk',    Icon: Icon.Key,       path: '/desk' },
   { id: 'book',     label: null,      Icon: null,           path: '/book', isCta: true },
-  { id: 'venues',   label: 'Venues',  Icon: Icon.Venues,    path: '/venues' },
+  { id: 'queue',    label: 'Queue',   Icon: Icon.Approvals, path: '/approvals', badge: true },
   { id: 'profile',  label: 'Profile', Icon: Icon.Profile,   path: '/profile' },
 ];
 

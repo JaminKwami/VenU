@@ -78,6 +78,7 @@ export default function Layout() {
         {isAdmin && (
           <>
             <div className="sb-section">Administration</div>
+            {navLink('/desk', 'Front desk', Icon.Key)}
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
             {isSuperAdmin && navLink('/admin/venues', 'Manage venues', Icon.Manage)}
             {isSuperAdmin && navLink('/admin/users', 'Users', Icon.Users)}

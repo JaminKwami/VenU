@@ -257,19 +257,38 @@ def _notify_waitlist(booking):
 
 # ── Check-in ──────────────────────────────────────────────────────────────────
 
-def check_in_booking(booking, token):
+def check_in_booking(booking, token=None, actor=None, require_token=True):
     """
-    Mark a booking as checked in.  Validates the check-in token that was
-    issued when the booking was created.
+    Mark a booking as checked in.
+
+    Self-service (kiosk / the booker's own QR) must pass the matching token.
+    Front-desk staff (admin/receptionist) may check a guest in without a token
+    by calling with require_token=False — they verify identity in person and
+    hand over the key. `actor` is recorded as who performed the check-in.
     """
-    if str(booking.check_in_token) != str(token):
+    if require_token and str(booking.check_in_token) != str(token):
         raise ValidationError('Invalid check-in code.')
     if booking.status != BookingStatus.APPROVED:
         raise ValidationError('Only approved bookings can be checked in.')
     if booking.checked_in_at is not None:
         raise ValidationError('This booking has already been checked in.')
     booking.checked_in_at = timezone.now()
-    booking.save(update_fields=['checked_in_at', 'updated_at'])
+    booking.checked_in_by = actor
+    booking.save(update_fields=['checked_in_at', 'checked_in_by', 'updated_at'])
+    return booking
+
+
+def return_key(booking, actor=None):
+    """
+    Front-desk: record that the physical key for a checked-in booking has been
+    handed back. Only meaningful once the booking is checked in.
+    """
+    if booking.checked_in_at is None:
+        raise ValidationError('This booking has not been checked in yet.')
+    if booking.key_returned_at is not None:
+        raise ValidationError('The key has already been returned.')
+    booking.key_returned_at = timezone.now()
+    booking.save(update_fields=['key_returned_at', 'updated_at'])
     return booking
 
 

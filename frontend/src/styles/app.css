@@ -439,6 +439,12 @@ span.role-sel { cursor: default; padding-right: .7em; }
 .lo-tag { font-size: .7rem; font-weight: 600; color: var(--ink-65); background: var(--canvas-2); border: 1px solid var(--line); padding: .22em .6em; border-radius: 999px; white-space: nowrap; }
 .lo-tag.mono { font-family: var(--font-mono); letter-spacing: .02em; }
 
+/* Front desk: avatar in thumbnail, row actions */
+.fd-av { color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; letter-spacing: -.02em; position: relative; z-index: 1; }
+.fd-actions { flex: none; display: flex; align-items: center; gap: .5rem; }
+.fd-done { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--success-soft); color: var(--success); }
+@media (max-width: 640px) { .fd-actions { flex-direction: column; } }
+
 /* Month calendar widget */
 .cal { padding: 1.2rem 1.3rem 1.4rem; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }

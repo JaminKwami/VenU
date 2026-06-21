@@ -302,12 +302,38 @@ class BookingCheckInView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         is_owner = booking.user_id == request.user.pk
-        if not (is_owner or request.user.is_admin or request.user.is_staff_member):
+        is_desk = request.user.is_staff_member  # ADMIN or RECEPTIONIST
+        if not (is_owner or is_desk):
             return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
 
+        # Front-desk staff check guests in manually (no QR needed); the booker's
+        # own self-service check-in still requires the matching token.
         token = request.data.get('token', '')
         try:
-            booking = services.check_in_booking(booking, token)
+            booking = services.check_in_booking(
+                booking, token=token, actor=request.user, require_token=not is_desk,
+            )
+        except ValidationError as exc:
+            return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(BookingSerializer(booking, context={'request': request}).data)
+
+
+class BookingReturnKeyView(APIView):
+    """
+    POST /api/bookings/{id}/return-key/
+    Front desk records that the physical key has been handed back. Staff only.
+    """
+    permission_classes = [IsApprover]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            booking = services.return_key(booking, actor=request.user)
         except ValidationError as exc:
             return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -408,3 +408,62 @@ class ApprovalPermissionTest(TestCase):
         self.client.force_authenticate(self.student)
         res = self.client.patch(f'/api/bookings/{b.id}/approve/')
         self.assertEqual(res.status_code, 403)
+
+
+class FrontDeskTest(TestCase):
+    """Front-desk: staff token-free check-in + key return; booker needs token."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.receptionist = make_user('fd-recep@test.com', UserRole.RECEPTIONIST)
+        self.student = make_user('fd-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Front Desk Hall')
+        self.tomorrow = date.today() + timedelta(days=1)
+
+    def _approved(self):
+        return make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.APPROVED)
+
+    def test_staff_checkin_without_token(self):
+        b = self._approved()
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.post(f'/api/bookings/{b.id}/checkin/', {}, format='json')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertIsNotNone(b.checked_in_at)
+        self.assertEqual(b.checked_in_by_id, self.receptionist.id)
+
+    def test_booker_still_needs_token(self):
+        b = self._approved()
+        self.client.force_authenticate(self.student)
+        res = self.client.post(f'/api/bookings/{b.id}/checkin/', {'token': 'wrong'}, format='json')
+        self.assertEqual(res.status_code, 400)
+        b.refresh_from_db()
+        self.assertIsNone(b.checked_in_at)
+
+    def test_booker_checkin_with_token(self):
+        b = self._approved()
+        self.client.force_authenticate(self.student)
+        res = self.client.post(f'/api/bookings/{b.id}/checkin/', {'token': str(b.check_in_token)}, format='json')
+        self.assertEqual(res.status_code, 200)
+
+    def test_return_key_flow(self):
+        b = self._approved()
+        self.client.force_authenticate(self.receptionist)
+        self.client.post(f'/api/bookings/{b.id}/checkin/', {}, format='json')
+        res = self.client.post(f'/api/bookings/{b.id}/return-key/', {}, format='json')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertIsNotNone(b.key_returned_at)
+
+    def test_return_key_requires_checkin(self):
+        b = self._approved()
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.post(f'/api/bookings/{b.id}/return-key/', {}, format='json')
+        self.assertEqual(res.status_code, 400)
+
+    def test_student_cannot_return_key(self):
+        b = self._approved()
+        self.client.force_authenticate(self.student)
+        res = self.client.post(f'/api/bookings/{b.id}/return-key/', {}, format='json')
+        self.assertEqual(res.status_code, 403)

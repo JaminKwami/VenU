@@ -18,6 +18,7 @@ class BookingSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     venue = VenueSerializer(read_only=True)
     decided_by = UserSerializer(read_only=True)
+    checked_in_by = UserSerializer(read_only=True)
     check_in_token = serializers.SerializerMethodField()
 
     class Meta:
@@ -26,13 +27,14 @@ class BookingSerializer(serializers.ModelSerializer):
             'id', 'user', 'venue', 'date', 'start_time', 'end_time',
             'status', 'purpose', 'department', 'notes', 'attendee_count',
             'rejection_reason', 'series_id',
-            'check_in_token', 'checked_in_at',
+            'check_in_token', 'checked_in_at', 'checked_in_by', 'key_returned_at',
             'decided_by', 'decided_at',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'status', 'rejection_reason', 'series_id',
-            'checked_in_at', 'decided_by', 'decided_at', 'created_at', 'updated_at',
+            'checked_in_at', 'checked_in_by', 'key_returned_at',
+            'decided_by', 'decided_at', 'created_at', 'updated_at',
         ]
 
     def get_check_in_token(self, obj):
