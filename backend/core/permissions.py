@@ -25,6 +25,21 @@ class IsAdminOrStaff(BasePermission):
         )
 
 
+class IsApprover(BasePermission):
+    """
+    Allow access to users who may action booking requests — ADMIN or
+    RECEPTIONIST (see User.is_staff_member). Receptionists run the desk and
+    approve/decline; students and staff cannot.
+    """
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_staff_member
+        )
+
+
 class IsOwnerOrAdmin(BasePermission):
     """
     Object-level permission.

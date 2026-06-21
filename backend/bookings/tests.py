@@ -356,3 +356,55 @@ class DayGridTest(TestCase):
         self.assertEqual(len(hall['slots']), 1)
         self.assertEqual(hall['slots'][0]['start_time'], '10:00')
         self.assertTrue(hall['slots'][0]['mine'])
+
+
+class ApprovalPermissionTest(TestCase):
+    """Who may approve/decline: ADMIN + RECEPTIONIST yes; STAFF/STUDENT no."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.admin = make_user('ap-admin@test.com', UserRole.ADMIN)
+        self.receptionist = make_user('ap-recep@test.com', UserRole.RECEPTIONIST)
+        self.staff = make_user('ap-staff@test.com', UserRole.STAFF)
+        self.student = make_user('ap-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Approval Hall')
+        self.tomorrow = date.today() + timedelta(days=1)
+
+    def _pending(self):
+        return make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+
+    def test_receptionist_can_approve(self):
+        b = self._pending()
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertEqual(b.status, BookingStatus.APPROVED)
+        self.assertEqual(b.decided_by_id, self.receptionist.id)
+
+    def test_receptionist_can_reject(self):
+        b = self._pending()
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.patch(f'/api/bookings/{b.id}/reject/', {'reason': 'Double booked'}, format='json')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertEqual(b.status, BookingStatus.REJECTED)
+
+    def test_admin_can_approve(self):
+        b = self._pending()
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 200)
+
+    def test_staff_cannot_approve(self):
+        b = self._pending()
+        self.client.force_authenticate(self.staff)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 403)
+
+    def test_student_cannot_approve(self):
+        b = self._pending()
+        self.client.force_authenticate(self.student)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 403)

@@ -98,7 +98,9 @@ export default function DashboardPage() {
     <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
   ));
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  // Admin-style dashboard = those who manage the queue (ADMIN + RECEPTIONIST),
+  // matching the sidebar, route guards and backend (User.is_staff_member).
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'RECEPTIONIST';
   const [bookings, setBookings] = useState(null);
   const [qrBooking, setQrBooking] = useState(null);
   const [filter, setFilter] = useState('upcoming');

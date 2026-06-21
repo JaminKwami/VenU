@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.permissions import IsAdmin, IsOwnerOrAdmin
+from core.permissions import IsAdmin, IsApprover, IsOwnerOrAdmin
 from venues.models import Venue
 from .models import AutoApprovalRule, Booking, BookingStatus, TermDate, WaitlistEntry
 from .serializers import (
@@ -148,8 +148,8 @@ class BookingDetailView(APIView):
 
 
 class BookingApproveView(APIView):
-    """PATCH /api/bookings/{id}/approve/  — admin only"""
-    permission_classes = [IsAdmin]
+    """PATCH /api/bookings/{id}/approve/  — admin or receptionist"""
+    permission_classes = [IsApprover]
 
     def patch(self, request, pk):
         try:
@@ -171,8 +171,8 @@ class BookingApproveView(APIView):
 
 
 class BookingRejectView(APIView):
-    """PATCH /api/bookings/{id}/reject/  — admin only"""
-    permission_classes = [IsAdmin]
+    """PATCH /api/bookings/{id}/reject/  — admin or receptionist"""
+    permission_classes = [IsApprover]
 
     def patch(self, request, pk):
         try:
