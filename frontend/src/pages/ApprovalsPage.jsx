@@ -142,9 +142,9 @@ export default function ApprovalsPage() {
         <div className="card stat-card"><div className="stat-label">Avg response</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{avgResponse || '—'}</div></div>
       </div>
 
-      <div className="filters reveal">
+      <div className="filter-pills reveal">
         {FILTERS.map(f => (
-          <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>{f}</button>
+          <button key={f} className={`fp${filter === f ? ' on' : ''}`} onClick={() => setFilter(f)}>{f}</button>
         ))}
       </div>
 

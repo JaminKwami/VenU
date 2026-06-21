@@ -431,6 +431,14 @@ span.role-sel { cursor: default; padding-right: .7em; }
 .lo-go svg { width: 18px; height: 18px; }
 .lo-export { align-self: center; margin-top: .3rem; }
 
+/* Two-column card-row grid (venue catalogue) */
+.lo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+@media (max-width: 900px) { .lo-grid { grid-template-columns: 1fr; } }
+
+/* Small inline tags inside card rows */
+.lo-tag { font-size: .7rem; font-weight: 600; color: var(--ink-65); background: var(--canvas-2); border: 1px solid var(--line); padding: .22em .6em; border-radius: 999px; white-space: nowrap; }
+.lo-tag.mono { font-family: var(--font-mono); letter-spacing: .02em; }
+
 /* Month calendar widget */
 .cal { padding: 1.2rem 1.3rem 1.4rem; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }

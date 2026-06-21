@@ -67,8 +67,11 @@ export default function VenuesPage() {
         <p>Browse every bookable room, studio, lab and outdoor space on campus. Filter by what matters, then request in one tap.</p>
       </div>
 
-      <div className="filter-bar reveal">
-        <div className="search-box">
+      <div className="filter-pills reveal">
+        {types.map(t => (
+          <button key={t} className={`fp${type === t ? ' on' : ''}`} onClick={() => setType(t)}>{t}</button>
+        ))}
+        <div className="search-box fp-search">
           <Icon.Search />
           <input
             className="input"
@@ -77,10 +80,13 @@ export default function VenuesPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="select" style={{ maxWidth: 170 }} value={building} onChange={e => setBuilding(e.target.value)}>
+      </div>
+
+      <div className="filter-bar reveal" data-d="1" style={{ marginBottom: '1.6rem' }}>
+        <select className="select" style={{ maxWidth: 180 }} value={building} onChange={e => setBuilding(e.target.value)}>
           {buildings.map(b => <option key={b}>{b}</option>)}
         </select>
-        <select className="select" style={{ maxWidth: 150 }} value={capRange} onChange={e => setCapRange(e.target.value)}>
+        <select className="select" style={{ maxWidth: 160 }} value={capRange} onChange={e => setCapRange(e.target.value)}>
           {Object.keys(CAP_RANGES).map(c => <option key={c}>{c}</option>)}
         </select>
         <span className="toolbar-right count-label">
@@ -88,17 +94,17 @@ export default function VenuesPage() {
         </span>
       </div>
 
-      {types.length > 1 && (
-        <div className="filter-bar reveal" data-d="1" style={{ marginBottom: '1.8rem' }}>
-          {types.map(t => (
-            <button key={t} className={`chip${type === t ? ' active' : ''}`} onClick={() => setType(t)}>{t}</button>
-          ))}
-        </div>
-      )}
-
       {loading ? (
-        <div className="vgrid">
-          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 330, borderRadius: 'var(--r-lg)' }} />)}
+        <div className="lo-list lo-grid">
+          {[1, 2, 3, 4].map(i => (
+            <div className="lo-card" key={i}>
+              <div className="skeleton" style={{ width: 84, height: 84, borderRadius: 'var(--r-lg)' }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton" style={{ height: 16, width: '55%', marginBottom: 8 }} />
+                <div className="skeleton" style={{ height: 12, width: '75%' }} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty card" style={{ borderRadius: 'var(--r-lg)' }}>
@@ -106,26 +112,22 @@ export default function VenuesPage() {
           <span>{search || type !== 'All types' ? 'Nothing matches those filters.' : 'No venues in the catalogue yet.'}</span>
         </div>
       ) : (
-        <div className="vgrid">
+        <div className="lo-list lo-grid">
           {filtered.map((v, i) => (
-            <Link className="vcard reveal" data-d={(i % 3) + 1} key={v.id} to={`/venues/${v.id}`}>
-              <div className="vis">
-                <div style={{ position: 'absolute', inset: 0, background: venueGradient(v.id) }} />
-                <div className="iso" />
-                <span className={`vstatus badge ${v.is_active ? 'badge-approved' : 'badge-cancelled'}`}><span className="dot" />{v.is_active ? 'Bookable' : 'Unavailable'}</span>
-                <span className="vcap">CAP {v.capacity}</span>
+            <Link className="lo-card reveal" data-d={(i % 3) + 1} key={v.id} to={`/venues/${v.id}`}>
+              <div className="lo-thumb" style={{ background: venueGradient(v.id) }}>
+                <Icon.Venues />
               </div>
-              <div className="body">
-                <h3>{v.name}</h3>
-                <div className="vmeta">{[v.building, v.venue_type].filter(Boolean).join(' · ') || v.location}</div>
-                {(v.amenities || []).length > 0 && (
-                  <div className="amen">{v.amenities.slice(0, 4).map(a => <span className="a" key={a}>{a}</span>)}</div>
-                )}
-                <div className="vfoot">
-                  <span className="rate mono" style={{ fontSize: '.72rem' }}>{v.location}</span>
-                  <span className="btn btn-outline btn-sm">View &amp; book</span>
+              <div className="lo-body">
+                <div className="lo-title">{v.name}</div>
+                <div className="lo-desc">{[v.building, v.venue_type, v.location].filter(Boolean).join(' · ')}</div>
+                <div className="lo-meta">
+                  <span className={`badge ${v.is_active ? 'badge-approved' : 'badge-cancelled'}`}><span className="dot" />{v.is_active ? 'Bookable' : 'Unavailable'}</span>
+                  <span className="lo-tag mono">CAP {v.capacity}</span>
+                  {(v.amenities || []).slice(0, 2).map(a => <span className="lo-tag" key={a}>{a}</span>)}
                 </div>
               </div>
+              <span className="lo-go"><Icon.Arrow /></span>
             </Link>
           ))}
         </div>
