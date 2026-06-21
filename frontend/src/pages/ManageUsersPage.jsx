@@ -49,9 +49,21 @@ export default function ManageUsersPage() {
   ) : null);
 
   useEffect(() => {
-    // TODO: Re-enable after debugging 401 logout issue
-    // api.get('/auth/users/').then(r => setUsers(r.data.results ?? r.data)).catch(() => setUsers([]));
-    setUsers([]);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    api.get('/auth/users/', { signal: controller.signal })
+      .then(r => setUsers(r.data.results ?? r.data))
+      .catch(err => {
+        console.error('Failed to fetch users:', err?.message);
+        setUsers([]);
+      })
+      .finally(() => clearTimeout(timeout));
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const all = users || [];
