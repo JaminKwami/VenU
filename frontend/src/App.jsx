@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import api from './api/axios';
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -57,6 +59,44 @@ function Responsive({ mobile, desktop }) {
 }
 
 export default function App() {
+  const { accessToken, user, setUser } = useAuthStore();
+  const [authReady, setAuthReady] = useState(false);
+
+  // On a fresh load (e.g. page refresh) only the tokens are rehydrated from
+  // localStorage — the `user` object is not persisted. Re-fetch it before
+  // rendering any routes, otherwise role-gated guards see a null user and
+  // wrongly bounce the admin to /dashboard (looks like a logout).
+  useEffect(() => {
+    let cancelled = false;
+    if (accessToken && !user) {
+      api.get('/auth/me/')
+        .then(({ data }) => { if (!cancelled) setUser(data); })
+        .catch(() => { /* 401 → interceptor refreshes or logs out */ })
+        .finally(() => { if (!cancelled) setAuthReady(true); });
+    } else {
+      setAuthReady(true);
+    }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!authReady) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <div
+          aria-label="Loading"
+          style={{
+            width: 32, height: 32, borderRadius: '50%',
+            border: '3px solid var(--ink-15, #e2e2e2)',
+            borderTopColor: 'var(--accent, #2D4EAA)',
+            animation: 'venu-spin 0.8s linear infinite',
+          }}
+        />
+        <style>{'@keyframes venu-spin { to { transform: rotate(360deg); } }'}</style>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>

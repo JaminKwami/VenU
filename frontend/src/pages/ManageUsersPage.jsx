@@ -40,7 +40,9 @@ export default function ManageUsersPage() {
   const [error, setError] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(null);
-  const revealRef = useReveal([users != null]);
+  // Re-run on tab change too: each tab mounts fresh `.reveal` elements that
+  // the observer must re-pick-up, else they stay at opacity:0 (blank tab).
+  const revealRef = useReveal([users != null, tab]);
 
   useTopbar('Users', tab === 'users' ? (
     <button className="btn btn-primary btn-sm" onClick={() => setInviteOpen(true)}>
@@ -288,6 +290,9 @@ export default function ManageUsersPage() {
 }
 
 function EnrollmentTab() {
+  // Own reveal observer: these cards mount only when the tab is opened, after
+  // the page-level observer has already run, so they need their own.
+  const revealRef = useReveal([]);
   const [newDomain, setNewDomain] = useState('');
   const [newDomainRole, setNewDomainRole] = useState('STUDENT');
   const [addingDomain, setAddingDomain] = useState(false);
@@ -338,7 +343,7 @@ function EnrollmentTab() {
   }
 
   return (
-    <div className="stack" style={{ gap: '1.4rem' }}>
+    <div className="stack" style={{ gap: '1.4rem' }} ref={revealRef}>
       <div className="card card-pad reveal">
         <h3 style={{ marginBottom: '.3rem' }}>Allowed email domains</h3>
         <p className="muted" style={{ fontSize: '.86rem', marginBottom: '1.2rem' }}>Anyone with a matching email domain can self-register without an admin invite.</p>
