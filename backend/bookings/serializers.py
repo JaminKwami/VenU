@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from users.serializers import UserSerializer
 from venues.serializers import VenueSerializer
-from .models import AutoApprovalRule, Booking, TermDate, WaitlistEntry
+from .models import AutoApprovalRule, Booking, KeyHandout, TermDate, WaitlistEntry
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -101,6 +101,40 @@ class AutoApprovalRuleSerializer(serializers.ModelSerializer):
             'enabled', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+
+class KeyHandoutSerializer(serializers.ModelSerializer):
+    """Front-desk ad-hoc key log. Holder/room may be linked or free text."""
+
+    holder_display = serializers.CharField(read_only=True)
+    room_display = serializers.CharField(read_only=True)
+    is_out = serializers.BooleanField(read_only=True)
+    handed_out_by_name = serializers.CharField(source='handed_out_by.full_name', read_only=True, default=None)
+    holder_role_label = serializers.CharField(source='get_holder_role_display', read_only=True)
+    purpose_label = serializers.CharField(source='get_purpose_display', read_only=True)
+
+    class Meta:
+        model = KeyHandout
+        fields = [
+            'id', 'holder_user', 'holder_name', 'holder_role', 'holder_role_label',
+            'venue', 'room_label', 'purpose', 'purpose_label', 'note',
+            'holder_display', 'room_display', 'is_out',
+            'handed_out_by', 'handed_out_by_name', 'handed_out_at',
+            'returned_at', 'returned_to',
+        ]
+        read_only_fields = [
+            'id', 'handed_out_by', 'handed_out_at', 'returned_at', 'returned_to',
+        ]
+
+    def validate(self, data):
+        # Need at least a holder (user or name) and a room (venue or label).
+        holder = data.get('holder_user') or (data.get('holder_name') or '').strip()
+        if not holder:
+            raise serializers.ValidationError({'holder_name': 'Pick a person or type a name.'})
+        room = data.get('venue') or (data.get('room_label') or '').strip()
+        if not room:
+            raise serializers.ValidationError({'room_label': 'Pick a venue or type a room.'})
+        return data
 
 
 class TermDateSerializer(serializers.ModelSerializer):

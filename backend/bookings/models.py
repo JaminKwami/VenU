@@ -184,3 +184,77 @@ class TermDate(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.start_date}–{self.end_date})'
+
+
+class KeyHandout(models.Model):
+    """
+    Front-desk log of a physical key handed to someone who is NOT checking in
+    against a booking — e.g. a cleaner taking a key to clean a room, or staff
+    collecting their office key. Deliberately lightweight: holder and room can
+    be a linked record or free text, so the desk can log instantly with no
+    inventory setup.
+    """
+
+    class HolderRole(models.TextChoices):
+        CLEANER = 'CLEANER', 'Cleaner'
+        STAFF = 'STAFF', 'Staff'
+        CONTRACTOR = 'CONTRACTOR', 'Contractor'
+        OTHER = 'OTHER', 'Other'
+
+    class Purpose(models.TextChoices):
+        CLEANING = 'CLEANING', 'Cleaning'
+        OFFICE = 'OFFICE', 'Office access'
+        MAINTENANCE = 'MAINTENANCE', 'Maintenance'
+        EVENT = 'EVENT', 'Event setup'
+        OTHER = 'OTHER', 'Other'
+
+    # Holder — a registered user OR a free-text name (cleaners/contractors).
+    holder_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='keys_held',
+    )
+    holder_name = models.CharField(max_length=150, blank=True, default='')
+    holder_role = models.CharField(max_length=20, choices=HolderRole.choices, default=HolderRole.OTHER)
+
+    # What the key opens — a known venue OR a free-text label.
+    venue = models.ForeignKey(
+        Venue, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='key_handouts',
+    )
+    room_label = models.CharField(max_length=150, blank=True, default='')
+
+    purpose = models.CharField(max_length=20, choices=Purpose.choices, default=Purpose.OTHER)
+    note = models.CharField(max_length=255, blank=True, default='')
+
+    handed_out_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='keys_handed_out',
+    )
+    handed_out_at = models.DateTimeField(auto_now_add=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    returned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='keys_received_back',
+    )
+
+    class Meta:
+        ordering = ['-handed_out_at']
+
+    def __str__(self):
+        return f'KeyHandout({self.holder_display} · {self.room_display})'
+
+    @property
+    def holder_display(self):
+        if self.holder_user_id:
+            return self.holder_user.full_name or self.holder_user.email
+        return self.holder_name or 'Unknown'
+
+    @property
+    def room_display(self):
+        if self.venue_id:
+            return self.venue.name
+        return self.room_label or '—'
+
+    @property
+    def is_out(self):
+        return self.returned_at is None

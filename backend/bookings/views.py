@@ -15,12 +15,13 @@ from rest_framework.views import APIView
 
 from core.permissions import IsAdmin, IsApprover, IsOwnerOrAdmin
 from venues.models import Venue
-from .models import AutoApprovalRule, Booking, BookingStatus, TermDate, WaitlistEntry
+from .models import AutoApprovalRule, Booking, BookingStatus, KeyHandout, TermDate, WaitlistEntry
 from .serializers import (
     AutoApprovalRuleSerializer,
     BookingSerializer,
     BookingCreateSerializer,
     BookingStatusSerializer,
+    KeyHandoutSerializer,
     TermDateSerializer,
     WaitlistEntrySerializer,
 )
@@ -338,6 +339,49 @@ class BookingReturnKeyView(APIView):
             return Response({'detail': exc.message}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(BookingSerializer(booking, context={'request': request}).data)
+
+
+class KeyHandoutListCreateView(APIView):
+    """
+    GET  /api/bookings/key-handouts/?status=out|returned|all
+         Front-desk ad-hoc key log (cleaners, staff office keys, etc.).
+    POST /api/bookings/key-handouts/  — log a new handout.
+    Staff only (admin/receptionist).
+    """
+    permission_classes = [IsApprover]
+
+    def get(self, request):
+        qs = KeyHandout.objects.select_related('holder_user', 'venue', 'handed_out_by').all()
+        state = request.query_params.get('status', 'out')
+        if state == 'out':
+            qs = qs.filter(returned_at__isnull=True)
+        elif state == 'returned':
+            today = timezone.now().date()
+            qs = qs.filter(returned_at__date=today)
+        return Response(KeyHandoutSerializer(qs[:200], many=True).data)
+
+    def post(self, request):
+        serializer = KeyHandoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        handout = serializer.save(handed_out_by=request.user)
+        return Response(KeyHandoutSerializer(handout).data, status=status.HTTP_201_CREATED)
+
+
+class KeyHandoutReturnView(APIView):
+    """POST /api/bookings/key-handouts/{id}/return/ — mark the key returned."""
+    permission_classes = [IsApprover]
+
+    def post(self, request, pk):
+        try:
+            handout = KeyHandout.objects.get(pk=pk)
+        except KeyHandout.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if handout.returned_at is not None:
+            return Response({'detail': 'This key is already returned.'}, status=status.HTTP_400_BAD_REQUEST)
+        handout.returned_at = timezone.now()
+        handout.returned_to = request.user
+        handout.save(update_fields=['returned_at', 'returned_to'])
+        return Response(KeyHandoutSerializer(handout).data)
 
 
 class KioskLookupView(APIView):

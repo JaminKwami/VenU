@@ -15,6 +15,8 @@ from .views import (
     BookingListCreateView,
     BookingRejectView,
     BookingReturnKeyView,
+    KeyHandoutListCreateView,
+    KeyHandoutReturnView,
     KioskLookupView,
     NoShowListView,
     TermDateDetailView,
@@ -39,6 +41,9 @@ urlpatterns = [
     path('<int:pk>/cancel/', BookingCancelView.as_view(), name='booking-cancel'),
     path('<int:pk>/checkin/', BookingCheckInView.as_view(), name='booking-checkin'),
     path('<int:pk>/return-key/', BookingReturnKeyView.as_view(), name='booking-return-key'),
+    # Front desk — ad-hoc key handouts (cleaners, staff office keys)
+    path('key-handouts/', KeyHandoutListCreateView.as_view(), name='key-handout-list'),
+    path('key-handouts/<int:pk>/return/', KeyHandoutReturnView.as_view(), name='key-handout-return'),
     # Kiosk (public — no auth)
     path('kiosk/', KioskLookupView.as_view(), name='booking-kiosk'),
     # Admin

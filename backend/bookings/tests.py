@@ -467,3 +467,54 @@ class FrontDeskTest(TestCase):
         self.client.force_authenticate(self.student)
         res = self.client.post(f'/api/bookings/{b.id}/return-key/', {}, format='json')
         self.assertEqual(res.status_code, 403)
+
+
+class KeyHandoutTest(TestCase):
+    """Front-desk ad-hoc key log: create (user or typed name), list, return, perms."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.receptionist = make_user('kh-recep@test.com', UserRole.RECEPTIONIST)
+        self.student = make_user('kh-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Key Hall')
+
+    def test_handout_typed_name(self):
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.post('/api/bookings/key-handouts/', {
+            'holder_name': 'Mary the Cleaner', 'holder_role': 'CLEANER',
+            'room_label': 'Office 204', 'purpose': 'CLEANING',
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['holder_display'], 'Mary the Cleaner')
+        self.assertEqual(res.data['room_display'], 'Office 204')
+        self.assertTrue(res.data['is_out'])
+
+    def test_handout_requires_holder_and_room(self):
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.post('/api/bookings/key-handouts/', {'purpose': 'CLEANING'}, format='json')
+        self.assertEqual(res.status_code, 400)
+
+    def test_list_keys_out(self):
+        self.client.force_authenticate(self.receptionist)
+        self.client.post('/api/bookings/key-handouts/', {'holder_name': 'A', 'room_label': 'R1'}, format='json')
+        res = self.client.get('/api/bookings/key-handouts/?status=out')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+
+    def test_return_key(self):
+        self.client.force_authenticate(self.receptionist)
+        c = self.client.post('/api/bookings/key-handouts/', {'holder_name': 'A', 'room_label': 'R1'}, format='json')
+        kid = c.data['id']
+        res = self.client.post(f'/api/bookings/key-handouts/{kid}/return/')
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.data['returned_at'])
+        self.assertFalse(res.data['is_out'])
+        # now no longer "out"
+        out = self.client.get('/api/bookings/key-handouts/?status=out')
+        self.assertEqual(len(out.data), 0)
+
+    def test_student_cannot_use_keylog(self):
+        self.client.force_authenticate(self.student)
+        self.assertEqual(self.client.get('/api/bookings/key-handouts/').status_code, 403)
+        self.assertEqual(self.client.post('/api/bookings/key-handouts/', {'holder_name': 'X', 'room_label': 'Y'}, format='json').status_code, 403)
