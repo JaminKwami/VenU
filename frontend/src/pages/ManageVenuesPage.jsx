@@ -113,18 +113,19 @@ export default function ManageVenuesPage() {
         <div className="card stat-card"><span className="stat-accent" style={{ background: 'var(--coral)' }} /><div className="stat-label">Avg utilisation</div><div className="stat-val" style={{ fontSize: '1.7rem', marginTop: '.9rem' }}>{utilAvg}%</div></div>
       </div>
 
-      <div className="toolbar reveal">
+      <div className="filter-pills reveal">
+        {['All statuses', 'Bookable', 'Maintenance'].map(s => (
+          <button key={s} className={`fp${status === s ? ' on' : ''}`} onClick={() => setStatus(s)}>{s}</button>
+        ))}
+      </div>
+
+      <div className="toolbar reveal" data-d="1">
         <div className="search-box">
           <Icon.Search />
           <input className="input" placeholder="Search the catalogue…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="select" style={{ maxWidth: 160 }} value={building} onChange={e => setBuilding(e.target.value)}>
           {buildings.map(b => <option key={b}>{b}</option>)}
-        </select>
-        <select className="select" style={{ maxWidth: 150 }} value={status} onChange={e => setStatus(e.target.value)}>
-          <option>All statuses</option>
-          <option>Bookable</option>
-          <option>Maintenance</option>
         </select>
         <button className="btn btn-primary btn-sm" onClick={openCreateForm}>
           <Icon.Plus width={14} height={14} /> Create venue

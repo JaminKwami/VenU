@@ -116,9 +116,9 @@ export default function ReportsPage() {
         <p>Booking activity and venue utilisation across the institution.</p>
       </div>
 
-      <div className="filters reveal" style={{ marginBottom: '1.4rem' }}>
+      <div className="filter-pills reveal" style={{ marginBottom: '1.4rem' }}>
         {RANGES.map((r) => (
-          <button key={r.days} className={`chip${days === r.days ? ' active' : ''}`} onClick={() => setDays(r.days)}>
+          <button key={r.days} className={`fp${days === r.days ? ' on' : ''}`} onClick={() => setDays(r.days)}>
             Last {r.label}
           </button>
         ))}
