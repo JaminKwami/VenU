@@ -1,13 +1,14 @@
 /* ════════════════════════════════════════════════════════════════
    VenU 2.0 — "Blueprint" Design System · AroLabs
-   Bricolage Grotesque · Hanken Grotesk · Space Mono
+   Bricolage Grotesque · Inter · Space Mono
    ════════════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
 /* ─── Tokens ─────────────────────────────────────────────────── */
 :root {
   --font-display: 'Bricolage Grotesque', sans-serif;
-  --font-sans: 'Hanken Grotesk', sans-serif;
+  /* Body / UI — Inter for legibility, with native fallbacks if it fails to load. */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Space Mono', monospace;
 
   /* accent (themeable) — monochrome onyx */
