@@ -221,7 +221,6 @@ export default function BookFlow() {
                 <button
                   key={h}
                   className={`m-time-btn${hour === h ? ' on' : ''}${busy ? ' busy' : ''}`}
-                  disabled={busy}
                   onClick={() => setHour(h)}
                 >
                   {pad(h)}

@@ -216,7 +216,7 @@ export default function BookingPage() {
                 {HOURS.map(h => {
                   const busy = overlaps(taken, h, duration);
                   return (
-                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`} disabled={busy} onClick={() => setHour(h)}>
+                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`} onClick={() => setHour(h)}>
                       {pad(h)}
                     </button>
                   );
