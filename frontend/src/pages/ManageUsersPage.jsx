@@ -200,7 +200,7 @@ export default function ManageUsersPage() {
             )}
             {!loading && filtered.map(u => (
               <tr key={u.id} style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
-                <td>
+                <td data-label="">
                   <div className="vcell">
                     <span className="avatar" style={{ background: 'var(--canvas-2)', color: 'var(--ink-65)', fontSize: '.75rem' }}>
                       {initials(u.full_name || u.email)}
@@ -211,7 +211,7 @@ export default function ManageUsersPage() {
                     </div>
                   </div>
                 </td>
-                <td>
+                <td data-label="Role">
                   {u.id === me?.id ? (
                     <span className={`role-sel ${roleClass(u.role)}`}>{ROLE_LABEL[u.role]}</span>
                   ) : (
@@ -227,10 +227,10 @@ export default function ManageUsersPage() {
                     </select>
                   )}
                 </td>
-                <td className="hide-sm" style={{ color: 'var(--ink-45)', fontSize: '.82rem', fontFamily: 'var(--font-mono)' }}>
+                <td className="hide-sm" data-label="Joined" style={{ color: 'var(--ink-45)', fontSize: '.82rem', fontFamily: 'var(--font-mono)' }}>
                   {u.date_joined ? new Date(u.date_joined).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                 </td>
-                <td>
+                <td data-label="Active">
                   <button
                     type="button"
                     className={`toggle${u.is_active !== false ? ' on' : ''}`}
@@ -240,7 +240,7 @@ export default function ManageUsersPage() {
                     aria-label={u.is_active !== false ? 'Deactivate user' : 'Activate user'}
                   />
                 </td>
-                <td>
+                <td data-label="">
                   <div className="row-act">
                     <button
                       type="button"
@@ -293,6 +293,8 @@ function EnrollmentTab() {
   // Own reveal observer: these cards mount only when the tab is opened, after
   // the page-level observer has already run, so they need their own.
   const revealRef = useReveal([]);
+  const [domains, setDomains] = useState([]);
+  const [links, setLinks] = useState([]);
   const [newDomain, setNewDomain] = useState('');
   const [newDomainRole, setNewDomainRole] = useState('STUDENT');
   const [addingDomain, setAddingDomain] = useState(false);
@@ -304,14 +306,19 @@ function EnrollmentTab() {
   const [linkError, setLinkError] = useState('');
   const [copied, setCopied] = useState(null);
 
+  useEffect(() => {
+    api.get('/auth/enrollment/domains/').then(r => setDomains(r.data.results ?? r.data)).catch(() => {});
+    api.get('/auth/enrollment/links/').then(r => setLinks(r.data.results ?? r.data)).catch(() => {});
+  }, []);
+
   async function addDomain(e) {
     e.preventDefault();
     setAddingDomain(true);
     setDomainError('');
     try {
-      await api.post('/auth/enrollment/domains/', { domain: newDomain, default_role: newDomainRole });
+      const res = await api.post('/auth/enrollment/domains/', { domain: newDomain, default_role: newDomainRole });
+      setDomains(prev => [...prev, res.data]);
       setNewDomain('');
-      setDomainError('');
     } catch (err) {
       setDomainError(err.response?.data?.domain?.[0] || err.response?.data?.detail || 'Failed to add domain.');
     } finally {
@@ -319,19 +326,33 @@ function EnrollmentTab() {
     }
   }
 
+  async function removeDomain(id) {
+    try {
+      await api.delete(`/auth/enrollment/domains/${id}/`);
+      setDomains(prev => prev.filter(d => d.id !== id));
+    } catch { /* ignore */ }
+  }
+
   async function createLink(e) {
     e.preventDefault();
     setAddingLink(true);
     setLinkError('');
     try {
-      await api.post('/auth/enrollment/links/', { default_role: newLinkRole, uses_limit: Number(newLinkLimit), note: newLinkNote });
+      const res = await api.post('/auth/enrollment/links/', { default_role: newLinkRole, uses_limit: Number(newLinkLimit), note: newLinkNote });
+      setLinks(prev => [...prev, res.data]);
       setNewLinkNote('');
-      setLinkError('');
     } catch (err) {
       setLinkError(err.response?.data?.detail || 'Failed to create link.');
     } finally {
       setAddingLink(false);
     }
+  }
+
+  async function revokeLink(id) {
+    try {
+      await api.delete(`/auth/enrollment/links/${id}/`);
+      setLinks(prev => prev.filter(l => l.id !== id));
+    } catch { /* ignore */ }
   }
 
   function copyLink(token) {
@@ -355,6 +376,17 @@ function EnrollmentTab() {
           <button className="btn btn-primary btn-sm" type="submit" disabled={!newDomain || addingDomain}>Add domain</button>
         </form>
         {domainError && <p style={{ color: 'var(--danger)', fontSize: '.82rem', marginTop: '.5rem' }}>{domainError}</p>}
+        {domains.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            {domains.map(d => (
+              <div key={d.id} className="enrollment-row">
+                <span className="enr-domain">@{d.domain}</span>
+                <span className={`role-sel ${(d.default_role || 'student').toLowerCase()}`}>{ROLE_LABEL[d.default_role] || d.default_role}</span>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', fontSize: '.72rem' }} onClick={() => removeDomain(d.id)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card card-pad reveal">
@@ -378,6 +410,25 @@ function EnrollmentTab() {
           <button className="btn btn-primary btn-sm" type="submit" disabled={addingLink}>Generate link</button>
         </form>
         {linkError && <p style={{ color: 'var(--danger)', fontSize: '.82rem', marginTop: '.5rem' }}>{linkError}</p>}
+        {links.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            {links.map(l => {
+              const url = `${window.location.origin}/login?token=${l.token}`;
+              return (
+                <div key={l.id} className="enrollment-row">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className={`role-sel ${(l.default_role || 'student').toLowerCase()}`}>{ROLE_LABEL[l.default_role] || l.default_role}</span>
+                    {l.note && <span style={{ fontSize: '.8rem', color: 'var(--ink-65)', marginLeft: '.5rem' }}>{l.note}</span>}
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '.68rem', color: 'var(--ink-45)', marginTop: '.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{url}</div>
+                    {l.uses_limit > 0 && <span style={{ fontSize: '.75rem', color: 'var(--ink-45)' }}>{l.uses_count ?? 0}/{l.uses_limit} uses</span>}
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: '.72rem' }} onClick={() => { navigator.clipboard.writeText(url); setCopied(l.id); setTimeout(() => setCopied(null), 2000); }}>{copied === l.id ? 'Copied!' : 'Copy'}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: '.72rem' }} onClick={() => revokeLink(l.id)}>Revoke</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

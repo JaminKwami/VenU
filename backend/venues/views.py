@@ -65,8 +65,13 @@ class VenueDetailView(APIView):
             return None
 
     def get(self, request, pk):
+        from users.models import UserRole
         venue = self._get_venue(pk)
         if venue is None:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        # Non-admins cannot see hidden or inactive venues by direct ID lookup.
+        is_admin = getattr(request.user, 'role', None) in (UserRole.ADMIN, UserRole.RECEPTIONIST)
+        if not is_admin and (not venue.is_active or venue.access == 'none'):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(VenueSerializer(venue).data)
 

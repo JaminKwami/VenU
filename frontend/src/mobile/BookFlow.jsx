@@ -171,7 +171,7 @@ export default function BookFlow() {
             <p className="m-book-hint">Swipe to see all venues.</p>
           </div>
           <div className="m-venue-pick-row">
-            {venues.slice(0, 8).map((v) => {
+            {venues.map((v) => {
               const mono = v.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
               return (
                 <button

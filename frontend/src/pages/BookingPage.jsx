@@ -52,7 +52,7 @@ export default function BookingPage() {
       const data = r.data.results ?? r.data;
       setVenues(data);
       if (!venueId && data.length) setVenueId(data[0].id);
-    });
+    }).catch(() => setError('Could not load venues — please refresh the page.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

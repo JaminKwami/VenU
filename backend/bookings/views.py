@@ -1,10 +1,10 @@
 import csv
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -136,7 +136,9 @@ class BookingDetailView(APIView):
 
     def _get_booking(self, pk):
         try:
-            return Booking.objects.select_related('user', 'venue').get(pk=pk)
+            return Booking.objects.select_related(
+                'user', 'venue', 'checked_in_by', 'decided_by'
+            ).get(pk=pk)
         except Booking.DoesNotExist:
             return None
 
@@ -263,8 +265,11 @@ class BookingAvailabilityView(APIView):
                 status__in=['PENDING', 'APPROVED'],
             )
             .order_by('date', 'start_time')
-            .values('date', 'start_time', 'end_time', 'status', 'purpose')
+            .values('date', 'start_time', 'end_time', 'status')
         )
+        # Only approvers see the purpose text; plain users only need slot occupancy.
+        if request.user.is_staff_member:
+            qs = qs.values('date', 'start_time', 'end_time', 'status', 'purpose')
         return Response({'venue': venue.pk, 'date_from': date_from, 'date_to': date_to, 'slots': list(qs)})
 
 
@@ -683,12 +688,15 @@ class AnalyticsView(APIView):
         # Window the "created" metrics on creation time instead of event date.
         created_window = Booking.objects.filter(created_at__date__gte=since)
 
-        status_counts = Counter(qs.values_list('status', flat=True))
-        approved = status_counts.get(BookingStatus.APPROVED, 0)
-        pending = status_counts.get(BookingStatus.PENDING, 0)
-        rejected = status_counts.get(BookingStatus.REJECTED, 0)
-        cancelled = status_counts.get(BookingStatus.CANCELLED, 0)
-        total = sum(status_counts.values())
+        status_rows = {
+            r['status']: r['n']
+            for r in qs.values('status').annotate(n=Count('id'))
+        }
+        approved = status_rows.get(BookingStatus.APPROVED, 0)
+        pending = status_rows.get(BookingStatus.PENDING, 0)
+        rejected = status_rows.get(BookingStatus.REJECTED, 0)
+        cancelled = status_rows.get(BookingStatus.CANCELLED, 0)
+        total = sum(status_rows.values())
 
         decided = approved + rejected
         approval_rate = round(approved / decided * 100, 1) if decided else None
@@ -707,26 +715,33 @@ class AnalyticsView(APIView):
         checked_in = past_approved.filter(checked_in_at__isnull=False).count()
         checkin_rate = round(checked_in / past_approved_count * 100, 1) if past_approved_count else None
 
-        # Busiest venues (approved/pending), top 6.
-        venue_counts = Counter(
-            qs.exclude(status=BookingStatus.CANCELLED).values_list('venue__name', flat=True)
+        # Busiest venues (approved/pending), top 6 — DB aggregation.
+        venue_rows = (
+            qs.exclude(status=BookingStatus.CANCELLED)
+            .values('venue__name')
+            .annotate(n=Count('id'))
+            .order_by('-n')[:6]
         )
-        top_venues = [{'venue': name, 'count': n} for name, n in venue_counts.most_common(6)]
+        top_venues = [{'venue': r['venue__name'], 'count': r['n']} for r in venue_rows]
 
-        # Peak start hours 08–19.
-        hour_counts = Counter(
-            b.start_time.hour for b in qs.exclude(status=BookingStatus.REJECTED).only('start_time')
-        )
-        peak_hours = [{'hour': h, 'count': hour_counts.get(h, 0)} for h in range(8, 20)]
+        # Peak start hours 08–19 — DB aggregation.
+        hour_rows = {
+            r['start_time__hour']: r['n']
+            for r in qs.exclude(status=BookingStatus.REJECTED)
+            .values('start_time__hour')
+            .annotate(n=Count('id'))
+        }
+        peak_hours = [{'hour': h, 'count': hour_rows.get(h, 0)} for h in range(8, 20)]
 
-        # Bookings created per day (time series).
-        day_counts = Counter(
-            d.isoformat() for d in created_window.values_list('created_at__date', flat=True)
-        )
+        # Bookings created per day (time series) — DB aggregation.
+        day_rows = {
+            r['created_at__date'].isoformat(): r['n']
+            for r in created_window.values('created_at__date').annotate(n=Count('id'))
+        }
         daily = []
         for i in range(days):
             d = (since + timedelta(days=i)).isoformat()
-            daily.append({'date': d, 'count': day_counts.get(d, 0)})
+            daily.append({'date': d, 'count': day_rows.get(d, 0)})
 
         return Response({
             'range_days': days,

@@ -151,6 +151,16 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
             f'({venue.capacity}).'
         )
 
+    if venue.min_notice_hours:
+        now = timezone.now()
+        booking_start = timezone.make_aware(datetime.combine(date, start_time))
+        notice_hours = (booking_start - now).total_seconds() / 3600
+        if notice_hours < venue.min_notice_hours:
+            raise ValidationError(
+                f'This venue requires at least {venue.min_notice_hours}h notice. '
+                f'Please choose a later date or time.'
+            )
+
     check_booking_conflict(venue, date, start_time, end_time)
 
     initial_status = BookingStatus.PENDING
@@ -319,11 +329,12 @@ def auto_release_no_shows(grace_minutes=15, dry_run=False):
     if dry_run:
         return no_shows.count()
     count = 0
-    for booking in no_shows:
-        booking.status = BookingStatus.CANCELLED
-        booking.save(update_fields=['status', 'updated_at'])
-        _notify_waitlist(booking)
-        count += 1
+    with transaction.atomic():
+        for booking in no_shows.select_for_update(skip_locked=True):
+            booking.status = BookingStatus.CANCELLED
+            booking.save(update_fields=['status', 'updated_at'])
+            _notify_waitlist(booking)
+            count += 1
     return count
 
 
@@ -362,8 +373,10 @@ def approve_booking(booking, decided_by=None):
     return booking
 
 
+@transaction.atomic
 def reject_booking(booking, decided_by=None, reason=''):
     """Reject a pending booking with an optional reason shown to the requester."""
+    booking = Booking.objects.select_for_update().get(pk=booking.pk)
     if booking.status != BookingStatus.PENDING:
         raise ValidationError('Only pending bookings can be rejected.')
 
@@ -394,7 +407,7 @@ def cancel_booking(booking, cancelled_by):
         raise ValidationError('Only pending or approved bookings can be cancelled.')
 
     is_owner = booking.user_id == cancelled_by.pk
-    if not (is_owner or cancelled_by.is_admin):
+    if not (is_owner or cancelled_by.is_staff_member):
         raise ValidationError('You can only cancel your own bookings.')
 
     if booking.date < timezone.localdate():

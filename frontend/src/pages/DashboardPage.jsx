@@ -106,6 +106,8 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState('upcoming');
   const [query, setQuery] = useState('');
   const [cancelling, setCancelling] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelError, setCancelError] = useState('');
   const revealRef = useReveal([bookings != null, filter]);
 
   useEffect(() => {
@@ -159,14 +161,16 @@ export default function DashboardPage() {
     [all, isAdmin],
   );
 
-  async function cancelBooking(b) {
-    if (!confirm(`Cancel your booking of ${b.venue.name} on ${b.date}?`)) return;
+  async function confirmCancel() {
+    const b = cancelTarget;
+    setCancelTarget(null);
+    setCancelError('');
     setCancelling(b.id);
     try {
       await api.patch(`/bookings/${b.id}/cancel/`);
       setBookings(prev => prev.map(x => x.id === b.id ? { ...x, status: 'CANCELLED' } : x));
     } catch {
-      alert('Cancellation failed — please try again.');
+      setCancelError('Cancellation failed — please try again.');
     } finally {
       setCancelling(null);
     }
@@ -254,7 +258,7 @@ export default function DashboardPage() {
                         </button>
                       )}
                       {canCancel && (
-                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => cancelBooking(b)}>
+                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => setCancelTarget(b)}>
                           {cancelling === b.id ? '…' : 'Cancel'}
                         </button>
                       )}
@@ -338,6 +342,23 @@ export default function DashboardPage() {
     </div>
 
     {qrBooking && <CheckInModal booking={qrBooking} onClose={() => setQrBooking(null)} />}
+
+    {cancelTarget && (
+      <div className="modal-scrim" onClick={() => setCancelTarget(null)}>
+        <div className="modal-card" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+          <h3>Cancel booking?</h3>
+          <p style={{ color: 'var(--ink-65)', margin: '.6rem 0 1.2rem' }}>
+            Cancel <b>{cancelTarget.venue.name}</b> on <b>{cancelTarget.date}</b>?<br />
+            This cannot be undone.
+          </p>
+          {cancelError && <p style={{ color: 'var(--danger)', fontSize: '.85rem', marginBottom: '.8rem' }}>{cancelError}</p>}
+          <div className="row" style={{ gap: '.6rem' }}>
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setCancelTarget(null)}>Keep it</button>
+            <button className="btn btn-danger" style={{ flex: 1 }} onClick={confirmCancel}>Yes, cancel</button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

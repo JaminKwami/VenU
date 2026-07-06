@@ -161,7 +161,7 @@ export default function ManageVenuesPage() {
             <tbody>
               {filtered.map(v => (
                 <tr key={v.id}>
-                  <td>
+                  <td data-label="">
                     <div className="vcell">
                       <span className="vthumb" style={{ background: venueGradient(v.id) }} />
                       <div>
@@ -170,9 +170,9 @@ export default function ManageVenuesPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="hide-sm"><span className="badge badge-neutral">{v.venue_type || '—'}</span></td>
-                  <td className="mono" style={{ fontWeight: 700 }}>{v.capacity}</td>
-                  <td className="hide-sm">
+                  <td className="hide-sm" data-label="Type"><span className="badge badge-neutral">{v.venue_type || '—'}</span></td>
+                  <td data-label="Cap." className="mono" style={{ fontWeight: 700 }}>{v.capacity}</td>
+                  <td className="hide-sm" data-label="Util.">
                     {(() => {
                       const s = statsMap[v.id];
                       const pct = s ? s.utilisation_pct : 0;
@@ -185,14 +185,14 @@ export default function ManageVenuesPage() {
                       );
                     })()}
                   </td>
-                  <td className="hide-sm">
+                  <td className="hide-sm" data-label="Access">
                     {v.access === 'both' && <span className="badge badge-neutral">All</span>}
                     {v.access === 'staff' && <span className="badge badge-pending">Staff</span>}
                     {v.access === 'student' && <span className="badge badge-approved">Students</span>}
                     {v.access === 'none' && <span className="badge badge-cancelled">Hidden</span>}
                   </td>
-                  <td>{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
-                  <td>
+                  <td data-label="Status">{v.is_active ? <span className="badge badge-approved"><span className="dot" />Live</span> : <span className="badge badge-pending"><span className="dot" />Maintenance</span>}</td>
+                  <td data-label="Book.">
                     <button
                       role="switch"
                       className={`toggle${v.is_active ? ' on' : ''}`}
@@ -202,7 +202,7 @@ export default function ManageVenuesPage() {
                       onClick={() => toggleBookable(v)}
                     />
                   </td>
-                  <td>
+                  <td data-label="">
                     <div className="row-act">
                       <button title="Edit" aria-label={`Edit ${v.name}`} onClick={() => openEditForm(v)}><Icon.Edit width={15} height={15} /></button>
                       <button title="View" aria-label={`View ${v.name}`} onClick={() => navigate(`/venues/${v.id}`)}><Icon.Eye width={15} height={15} /></button>

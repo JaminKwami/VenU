@@ -319,11 +319,47 @@
   .filters { gap: .35rem; }
   .filters .btn { font-size: .8rem; padding: .4rem .7rem; }
 
-  /* ── Manage venues ── */
+  /* ── Manage venues / users — card layout replaces horizontal scroll ── */
   .mg-stats { grid-template-columns: repeat(2,1fr); gap: .75rem; }
   .toolbar { gap: .4rem; }
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .tbl { min-width: 600px; }
+  .table-wrap { overflow-x: unset; }
+  .tbl { min-width: 0; }
+  .tbl thead { display: none; }
+  .tbl, .tbl tbody { display: block; }
+  .tbl tbody tr {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    padding: .75rem 1rem;
+    margin-bottom: .6rem;
+  }
+  .tbl tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .3rem 0;
+    border: none;
+    font-size: .875rem;
+  }
+  .tbl tbody td:first-child {
+    padding-bottom: .6rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: .2rem;
+  }
+  .tbl tbody td[data-label]::before {
+    content: attr(data-label);
+    font-size: .64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-45);
+    flex-shrink: 0;
+    min-width: 58px;
+    margin-right: .5rem;
+  }
+  .tbl tbody td[data-label=""] { justify-content: flex-end; }
+  .tbl tbody td.hide-sm { display: none; }
 
   /* ── Admin settings ── */
   .settings-inline-form { flex-direction: column; }
