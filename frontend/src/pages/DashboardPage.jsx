@@ -7,7 +7,7 @@ import { useReveal } from '../hooks/useReveal';
 import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
 import CheckInModal from '../components/CheckInModal';
-import { hm, hoursBetween, relTime, todayISO, prettyDate, venueGradient, STATUS_BADGE } from '../utils/venueUi';
+import { hm, todayISO, prettyDate, venueGradient, STATUS_BADGE } from '../utils/venueUi';
 
 function greeting() {
   const h = new Date().getHours();
@@ -28,59 +28,6 @@ async function downloadIcs() {
   a.download = 'venu-bookings.ics';
   a.click();
   URL.revokeObjectURL(url);
-}
-
-/* Month calendar — the signature widget of the new layout. Marks today and
-   any day that carries a booking (approved or pending). */
-function MonthCalendar({ bookedDays }) {
-  const now = new Date();
-  const [cur, setCur] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const todayKey = todayISO();
-
-  const first = new Date(cur.y, cur.m, 1);
-  const startOffset = (first.getDay() + 6) % 7;             // Monday-first
-  const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate();
-  const monthLabel = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-
-  const cells = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const shift = n => setCur(c => {
-    let m = c.m + n, y = c.y;
-    if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
-    return { y, m };
-  });
-  const keyFor = d => `${cur.y}-${String(cur.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-  return (
-    <div className="card cal reveal" data-d="1">
-      <div className="cal-head">
-        <span className="cal-title">{monthLabel}</span>
-        <div className="cal-nav">
-          <button onClick={() => shift(-1)} aria-label="Previous month"><Icon.ChevronLeft width={15} height={15} /></button>
-          <button onClick={() => shift(1)} aria-label="Next month"><Icon.ChevronRight width={15} height={15} /></button>
-        </div>
-      </div>
-      <div className="cal-grid cal-dow">
-        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <span key={d}>{d}</span>)}
-      </div>
-      <div className="cal-grid">
-        {cells.map((d, i) => {
-          if (d === null) return <span key={i} className="cal-cell empty" />;
-          const k = keyFor(d);
-          const isToday = k === todayKey;
-          const booked = bookedDays[k];
-          return (
-            <span key={i} className={`cal-cell${isToday ? ' today' : ''}`}>
-              {d}
-              {booked && !isToday && <i className="cal-dot" />}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 const PILLS = [
@@ -108,6 +55,8 @@ export default function DashboardPage() {
   const [cancelling, setCancelling] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelError, setCancelError] = useState('');
+  const [acting, setActing] = useState(null);
+  const [actError, setActError] = useState('');
   const revealRef = useReveal([bookings != null, filter]);
 
   useEffect(() => {
@@ -120,16 +69,28 @@ export default function DashboardPage() {
 
   const upcomingCount = all.filter(b => b.date >= today && b.status === 'APPROVED').length;
   const pendingCount = all.filter(b => b.status === 'PENDING').length;
-  const approvedHours = all.filter(b => b.status === 'APPROVED').reduce((a, b) => a + hoursBetween(b.start_time, b.end_time), 0);
+  const approvedToday = all.filter(b => b.status === 'APPROVED' && b.decided_at?.startsWith(today)).length;
 
-  const bookedDays = useMemo(() => {
-    const map = {};
-    all.forEach(b => {
-      if (b.status === 'APPROVED') map[b.date] = 'approved';
-      else if (b.status === 'PENDING' && !map[b.date]) map[b.date] = 'pending';
-    });
-    return map;
-  }, [all]);
+  // Top-priority queue for admins/receptionists: oldest requests first, capped
+  // to a handful so the dashboard stays a quick triage stop, not a full inbox.
+  const needsApproval = useMemo(
+    () => all.filter(b => b.status === 'PENDING').sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(0, 4),
+    [all],
+  );
+
+  async function actOnBooking(booking, action) {
+    setActing(booking.id);
+    setActError('');
+    try {
+      const url = action === 'approve' ? `/bookings/${booking.id}/approve/` : `/bookings/${booking.id}/reject/`;
+      const res = await api.patch(url);
+      setBookings(prev => prev.map(x => x.id === booking.id ? { ...x, status: res.data.status, decided_at: res.data.decided_at } : x));
+    } catch (err) {
+      setActError(err.response?.data?.detail || 'Action failed — please try again.');
+    } finally {
+      setActing(null);
+    }
+  }
 
   const list = useMemo(() => {
     const q = query.toLowerCase();
@@ -147,19 +108,6 @@ export default function DashboardPage() {
       return desc ? kb.localeCompare(ka) : ka.localeCompare(kb);
     });
   }, [all, filter, query, today]);
-
-  const activity = useMemo(
-    () => all
-      .map(b => {
-        if (b.status === 'APPROVED' && b.decided_at) return { who: b.venue.name, sub: 'Approved', tone: 'ok', ts: b.decided_at };
-        if (b.status === 'REJECTED' && b.decided_at) return { who: b.venue.name, sub: 'Declined', tone: 'no', ts: b.decided_at };
-        if (b.status === 'CANCELLED') return { who: b.purpose || b.venue.name, sub: 'Cancelled', tone: 'mute', ts: b.updated_at };
-        return { who: b.venue.name, sub: isAdmin ? `Requested by ${b.user?.full_name || 'user'}` : 'You requested', tone: 'pend', ts: b.created_at };
-      })
-      .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-      .slice(0, 5),
-    [all, isAdmin],
-  );
 
   async function confirmCancel() {
     const b = cancelTarget;
@@ -184,7 +132,7 @@ export default function DashboardPage() {
 
   return (
     <>
-    <div className="page" ref={revealRef}>
+    <div className="page" style={{ maxWidth: 980 }} ref={revealRef}>
       <div className="page-head reveal">
         <span className="eyebrow">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         <h1>{greeting()}, {firstName}.</h1>
@@ -199,7 +147,48 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Filter pills (reference: Time / Level / Language / Type) */}
+      {!isAdmin && <div style={{ marginBottom: '1.4rem' }}><QuickBook /></div>}
+
+      {isAdmin && (
+        <>
+          <div className="stat-trio reveal" data-d="0" style={{ marginBottom: '1.4rem' }}>
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : pendingCount}</div><div className="stat-seg-label">Pending</div></div>
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : approvedToday}</div><div className="stat-seg-label">Approved today</div></div>
+            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : upcomingCount}</div><div className="stat-seg-label">Upcoming</div></div>
+          </div>
+
+          {!loading && needsApproval.length > 0 && (
+            <div className="card reveal" data-d="1" style={{ marginBottom: '1.4rem' }}>
+              <div className="card-head">
+                <h3>Needs your approval</h3>
+                {pendingCount > needsApproval.length && (
+                  <Link className="btn btn-outline btn-sm" to="/admin/approvals">View all {pendingCount}</Link>
+                )}
+              </div>
+              {actError && <div className="conflict in" style={{ margin: '0 1.3rem 1rem' }}><Icon.X strokeWidth={2} /><span>{actError}</span></div>}
+              <div className="req-list">
+                {needsApproval.map(b => (
+                  <div className="req" key={b.id}>
+                    <span className="avatar">{initials(b.user?.full_name || b.user?.email)}</span>
+                    <div className="rinfo">
+                      <div className="rtitle">{b.purpose || b.venue.name}</div>
+                      <div className="rmeta">{b.venue.name} · {b.user?.full_name || b.user?.email}</div>
+                      <div className="rwhen">{prettyDate(b.date)} · {hm(b.start_time)}–{hm(b.end_time)}</div>
+                    </div>
+                    <div className="ract">
+                      <div className="mini-btns">
+                        <button className="ok" title="Approve" aria-label="Approve request" disabled={acting === b.id} onClick={() => actOnBooking(b, 'approve')}><Icon.Check /></button>
+                        <button className="no" title="Decline" aria-label="Decline request" disabled={acting === b.id} onClick={() => actOnBooking(b, 'reject')}><Icon.X /></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       <div className="filter-pills reveal">
         {PILLS.map(p => (
           <button key={p.id} className={`fp${filter === p.id ? ' on' : ''}`} onClick={() => setFilter(p.id)}>
@@ -212,132 +201,70 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="dash-grid">
-        {/* Left — card-row list */}
-        <div className="stack" style={{ gap: '1.4rem' }}>
-          {!isAdmin && <QuickBook />}
+      <div className="lo-list">
+        {loading && [1, 2, 3].map(i => (
+          <div className="lo-card" key={i}>
+            <div className="skeleton" style={{ width: 84, height: 84, borderRadius: 'var(--r-lg)' }} />
+            <div style={{ flex: 1 }}>
+              <div className="skeleton" style={{ height: 16, width: '55%', marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 12, width: '75%' }} />
+            </div>
+          </div>
+        ))}
 
-          <div className="lo-list">
-            {loading && [1, 2, 3].map(i => (
-              <div className="lo-card" key={i}>
-                <div className="skeleton" style={{ width: 84, height: 84, borderRadius: 'var(--r-lg)' }} />
-                <div style={{ flex: 1 }}>
-                  <div className="skeleton" style={{ height: 16, width: '55%', marginBottom: 8 }} />
-                  <div className="skeleton" style={{ height: 12, width: '75%' }} />
+        {!loading && list.length === 0 && (
+          <div className="card empty" style={{ padding: '3rem 1rem' }}>
+            <span className="ic"><Icon.Calendar width={22} height={22} /></span>
+            <span>{query || filter !== 'upcoming' ? 'Nothing matches those filters.' : 'No upcoming bookings. Ready to plan something?'}</span>
+            <Link className="btn btn-primary btn-sm" to="/book">New booking</Link>
+          </div>
+        )}
+
+        {!loading && list.slice(0, 10).map(b => {
+          const [cls, label] = STATUS_BADGE[b.status];
+          const canCancel = ['PENDING', 'APPROVED'].includes(b.status) && b.date >= today && !b.checked_in_at;
+          return (
+            <div className="lo-card" key={b.id}>
+              <div className="lo-thumb" style={{ background: venueGradient(b.venue.id) }}>
+                <Icon.Venues />
+              </div>
+              <div className="lo-body">
+                <div className="lo-title">{b.purpose || b.venue.name}</div>
+                <div className="lo-desc">
+                  {b.venue.name}{b.venue.building ? ` · ${b.venue.building}` : ''} · {prettyDate(b.date)} · {hm(b.start_time)}–{hm(b.end_time)}
+                  {isAdmin && b.user ? ` · ${b.user.full_name || b.user.email}` : ''}
+                </div>
+                <div className="lo-meta">
+                  <span className={`badge ${cls}`}><span className="dot" />{label}</span>
+                  {b.status === 'APPROVED' && b.check_in_token && (
+                    <button className={`bi-checkin${b.checked_in_at ? ' done' : ''}`} onClick={() => setQrBooking(b)}>
+                      <Icon.QR width={12} height={12} />{b.checked_in_at ? 'Checked in' : 'Check in'}
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button className="btn btn-danger btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => setCancelTarget(b)}>
+                      {cancelling === b.id ? '…' : 'Cancel'}
+                    </button>
+                  )}
+                  {b.status === 'REJECTED' && (
+                    <button className="btn btn-outline btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} onClick={() => tryAgain(b)}>
+                      Try again →
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
-
-            {!loading && list.length === 0 && (
-              <div className="card empty" style={{ padding: '3rem 1rem' }}>
-                <span className="ic"><Icon.Calendar width={22} height={22} /></span>
-                <span>{query || filter !== 'upcoming' ? 'Nothing matches those filters.' : 'No upcoming bookings. Ready to plan something?'}</span>
-                <Link className="btn btn-primary btn-sm" to="/book">New booking</Link>
-              </div>
-            )}
-
-            {!loading && list.slice(0, 10).map(b => {
-              const [cls, label] = STATUS_BADGE[b.status];
-              const canCancel = ['PENDING', 'APPROVED'].includes(b.status) && b.date >= today && !b.checked_in_at;
-              return (
-                <div className="lo-card" key={b.id}>
-                  <div className="lo-thumb" style={{ background: venueGradient(b.venue.id) }}>
-                    <Icon.Venues />
-                  </div>
-                  <div className="lo-body">
-                    <div className="lo-title">{b.purpose || b.venue.name}</div>
-                    <div className="lo-desc">
-                      {b.venue.name}{b.venue.building ? ` · ${b.venue.building}` : ''} · {prettyDate(b.date)} · {hm(b.start_time)}–{hm(b.end_time)}
-                      {isAdmin && b.user ? ` · ${b.user.full_name || b.user.email}` : ''}
-                    </div>
-                    <div className="lo-meta">
-                      <span className={`badge ${cls}`}><span className="dot" />{label}</span>
-                      {b.status === 'APPROVED' && b.check_in_token && (
-                        <button className={`bi-checkin${b.checked_in_at ? ' done' : ''}`} onClick={() => setQrBooking(b)}>
-                          <Icon.QR width={12} height={12} />{b.checked_in_at ? 'Checked in' : 'Check in'}
-                        </button>
-                      )}
-                      {canCancel && (
-                        <button className="btn btn-danger btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} disabled={cancelling === b.id} onClick={() => setCancelTarget(b)}>
-                          {cancelling === b.id ? '…' : 'Cancel'}
-                        </button>
-                      )}
-                      {b.status === 'REJECTED' && (
-                        <button className="btn btn-outline btn-sm" style={{ fontSize: '.74rem', padding: '.3em .7em' }} onClick={() => tryAgain(b)}>
-                          Try again →
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <Link className="lo-go" to={`/venues/${b.venue.id}`} aria-label={`Open ${b.venue.name}`}>
-                    <Icon.Arrow />
-                  </Link>
-                </div>
-              );
-            })}
-
-            {!loading && list.length > 0 && (
-              <button className="btn btn-outline btn-sm lo-export" onClick={() => downloadIcs().catch(() => {})}>
-                <Icon.Calendar width={14} height={14} /> Export .ics
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Right — calendar + lists */}
-        <div className="stack" style={{ gap: '1.4rem' }}>
-          <MonthCalendar bookedDays={bookedDays} />
-
-          <div className="stat-trio reveal" data-d="2">
-            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : upcomingCount}</div><div className="stat-seg-label">Upcoming</div></div>
-            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : pendingCount}</div><div className="stat-seg-label">Pending</div></div>
-            <div className="stat-seg"><div className="stat-seg-n">{loading ? '—' : Math.round(approvedHours)}<span style={{ fontSize: '1rem', fontWeight: 400 }}>h</span></div><div className="stat-seg-label">Term</div></div>
-          </div>
-
-          <div className="card reveal" data-d="3">
-            <div className="card-head">
-              <h3>{isAdmin ? 'Recent activity' : 'Your activity'}</h3>
-              {isAdmin && <Link className="btn btn-outline btn-sm" to="/admin/approvals">Approvals</Link>}
-            </div>
-            <div className="rail-list" style={{ padding: '0 1.3rem 1rem' }}>
-              {loading && [1, 2, 3].map(i => (
-                <div className="rl-item" key={i}><div className="skeleton" style={{ width: 38, height: 38, borderRadius: '50%' }} /><div style={{ flex: 1 }}><div className="skeleton" style={{ height: 12, width: '60%' }} /></div></div>
-              ))}
-              {!loading && activity.length === 0 && (
-                <div className="empty" style={{ padding: '1.5rem 1rem' }}><span>No activity yet.</span></div>
-              )}
-              {!loading && activity.map((a, i) => (
-                <div className="rl-item" key={i}>
-                  <span className="rl-av">{initials(a.who)}</span>
-                  <div className="rl-main">
-                    <div className="rl-nm">{a.who}</div>
-                    <div className="rl-sub">{a.sub} · {relTime(a.ts)}</div>
-                  </div>
-                  <span className={`rl-dot tone-${a.tone}`} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="reveal" data-d="4">
-            <div className="cmd-list">
-              <Link className="cmd-item" to="/book">
-                <div><div className="cmd-label">Book a room</div><div className="cmd-sub">{upcomingCount > 0 ? `${upcomingCount} scheduled` : 'No upcoming bookings'}</div></div>
-                <span className="cmd-arrow">›</span>
+              <Link className="lo-go" to={`/venues/${b.venue.id}`} aria-label={`Open ${b.venue.name}`}>
+                <Icon.Arrow />
               </Link>
-              <Link className="cmd-item" to="/venues">
-                <div><div className="cmd-label">Browse venues</div><div className="cmd-sub">Lecture halls · Seminar rooms · Labs</div></div>
-                <span className="cmd-arrow">›</span>
-              </Link>
-              {isAdmin && (
-                <Link className="cmd-item" to="/admin/approvals">
-                  <div><div className="cmd-label">Review approvals</div><div className={`cmd-sub${pendingCount > 0 ? ' urgent' : ''}`}>{pendingCount > 0 ? `${pendingCount} waiting` : 'No pending requests'}</div></div>
-                  <span className="cmd-arrow">›</span>
-                </Link>
-              )}
             </div>
-          </div>
-        </div>
+          );
+        })}
+
+        {!loading && list.length > 0 && (
+          <button className="btn btn-outline btn-sm lo-export" onClick={() => downloadIcs().catch(() => {})}>
+            <Icon.Calendar width={14} height={14} /> Export .ics
+          </button>
+        )}
       </div>
     </div>
 
