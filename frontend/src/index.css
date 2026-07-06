@@ -233,7 +233,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; line-height
 
 /* ─── Inputs ─────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 0.45rem; }
-.field > label { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-65); }
+.field > label { font-family: var(--font-sans); font-size: 0.82rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-65); }
 .input, .select, textarea.input {
   width: 100%;
   padding: 0.78em 1em;
