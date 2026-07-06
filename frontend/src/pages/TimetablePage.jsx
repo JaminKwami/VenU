@@ -47,6 +47,8 @@ export default function TimetablePage() {
   }, [date]);
 
   const isPast = date < todayISO();
+  const isToday = date === todayISO();
+  const currentHour = isToday ? new Date().getHours() : null;
   const venues = data?.venues || [];
   const loading = data == null && !error;
 
@@ -78,9 +80,9 @@ export default function TimetablePage() {
         </div>
         <div className="tt-legend">
           <span><i className="tt-sw free" /> Free</span>
-          <span><i className="tt-sw approved" /> Booked</span>
-          <span><i className="tt-sw pending" /> Pending</span>
-          <span><i className="tt-sw mine" /> Yours</span>
+          <span><i className="tt-sw approved"><Icon.X width={10} height={10} /></i> Booked</span>
+          <span><i className="tt-sw pending"><Icon.Clock width={10} height={10} /></i> Pending</span>
+          <span><i className="tt-sw mine"><Icon.Check width={10} height={10} /></i> Yours</span>
         </div>
       </div>
 
@@ -96,7 +98,7 @@ export default function TimetablePage() {
         <div className="tt-scroll reveal">
           <div className="tt-grid" style={{ gridTemplateColumns: `var(--tt-name) repeat(${HOURS.length}, 1fr)` }}>
             <div className="tt-corner">Room</div>
-            {HOURS.map((h) => <div key={h} className="tt-head">{pad(h)}</div>)}
+            {HOURS.map((h) => <div key={h} className={`tt-head${h === currentHour ? ' tt-now' : ''}`}>{pad(h)}</div>)}
 
             {loading && [1, 2, 3, 4, 5].map((i) => (
               <div key={i} style={{ display: 'contents' }}>
@@ -119,9 +121,13 @@ export default function TimetablePage() {
                       key={h}
                       className={`tt-cell tt-c-${st || (isPast ? 'past' : 'free')}`}
                       disabled={!free || isPast}
-                      title={free ? `${v.name} · ${pad(h)} — free` : `${pad(h)} — ${st}`}
+                      title={free ? `${v.name} · ${pad(h)} — free` : `${pad(h)} — ${st === 'mine' ? 'yours' : st}`}
                       onClick={() => book(v.id, h)}
-                    />
+                    >
+                      {st === 'approved' && <Icon.X width={13} height={13} />}
+                      {st === 'pending' && <Icon.Clock width={13} height={13} />}
+                      {st === 'mine' && <Icon.Check width={13} height={13} />}
+                    </button>
                   );
                 })}
               </div>
