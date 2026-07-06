@@ -68,9 +68,14 @@ export default function BookFlow() {
 
   const venue = venues.find((v) => v.id === Number(venueId));
   const clash = hour != null && overlaps(taken, hour, duration);
-  const nearestFree = useMemo(() => {
-    if (!clash) return null;
-    return HOURS.find((h) => !overlaps(taken, h, duration) && h !== hour) ?? null;
+  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
+  // user actually wanted — so the first suggestion is the least disruptive.
+  const nearestFreeSlots = useMemo(() => {
+    if (!clash) return [];
+    return HOURS
+      .filter((h) => h !== hour && !overlaps(taken, h, duration))
+      .sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour) || a - b)
+      .slice(0, 3);
   }, [clash, taken, duration, hour]);
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
 
@@ -236,7 +241,7 @@ export default function BookFlow() {
                 : <Icon.Check width={18} height={18} />}
               <span>
                 {clash
-                  ? `${pad(hour)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
+                  ? `${pad(hour)} overlaps an existing booking. Pick another time or venue below.`
                   : `${pad(hour)}–${pad(hour + duration)} is free. No conflicts detected.`}
               </span>
             </div>
@@ -244,13 +249,28 @@ export default function BookFlow() {
 
           {clash && (
             <div className="m-alt">
+              {nearestFreeSlots.length > 0 && (
+                <>
+                  <div className="m-alt-head"><Icon.Clock width={14} height={14} /> Try a different time</div>
+                  <div className="m-alt-time-row">
+                    {nearestFreeSlots.map((h) => (
+                      <button key={h} type="button" className="m-alt-time-chip" onClick={() => setHour(h)}>
+                        {pad(h)}–{pad(h + duration)}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               {loadingAlt ? (
-                <div className="m-alt-row">
+                <div className="m-alt-row" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
                   {[1, 2].map((i) => <div className="skel" key={i} style={{ minWidth: 150, height: 96, borderRadius: 16 }} />)}
                 </div>
               ) : alternatives.length > 0 ? (
                 <>
-                  <div className="m-alt-head"><Icon.Search width={14} height={14} /> Similar spaces free at this time</div>
+                  <div className="m-alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
+                    <Icon.Search width={14} height={14} /> Or try another venue at {pad(hour)}–{pad(hour + duration)}
+                  </div>
                   <div className="m-alt-row">
                     {alternatives.map((alt) => (
                       <button key={alt.id} className="m-alt-card" onClick={() => selectAlternative(alt)}>
@@ -265,16 +285,16 @@ export default function BookFlow() {
                     ))}
                   </div>
                 </>
-              ) : (
+              ) : nearestFreeSlots.length === 0 ? (
                 <div className="m-alt-empty">
                   <span>{waitlisted
                     ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
-                    : 'No similar space is free then. Join the waitlist and we’ll email you if it opens.'}</span>
+                    : 'Nothing else is free then. Join the waitlist and we’ll email you if it opens.'}</span>
                   {!waitlisted && (
                     <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={joinWaitlist}>Join waitlist</button>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 

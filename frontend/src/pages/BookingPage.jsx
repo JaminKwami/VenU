@@ -69,9 +69,14 @@ export default function BookingPage() {
   // so they must live before the effects that reference them in their dep arrays.
   const venue = venues.find(v => v.id === Number(venueId));
   const clash = hour != null && overlaps(taken, hour, duration);
-  const nearestFree = useMemo(() => {
-    if (!clash) return null;
-    return HOURS.find(h => !overlaps(taken, h, duration) && h !== hour) ?? null;
+  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
+  // user actually wanted — so the first suggestion is the least disruptive.
+  const nearestFreeSlots = useMemo(() => {
+    if (!clash) return [];
+    return HOURS
+      .filter(h => h !== hour && !overlaps(taken, h, duration))
+      .sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour) || a - b)
+      .slice(0, 3);
   }, [clash, taken, duration, hour]);
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
 
@@ -234,18 +239,33 @@ export default function BookingPage() {
                     {clash ? <Icon.X strokeWidth={2} /> : <Icon.Approvals strokeWidth={2} />}
                     <span>
                       {clash
-                        ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking.${nearestFree != null ? ` Nearest free slot: ${pad(nearestFree)}.` : ''}`
+                        ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking. Pick another time or venue below.`
                         : `${pad(hour)}–${pad(hour + duration)} is free. No clashes detected for this slot.`}
                     </span>
                   </div>
 
                   {clash && (
                     <div className="alternatives">
+                      {nearestFreeSlots.length > 0 && (
+                        <>
+                          <div className="alt-head">Try a different time for {venue?.name}</div>
+                          <div className="alt-time-row">
+                            {nearestFreeSlots.map(h => (
+                              <button key={h} type="button" className="alt-time-chip" onClick={() => setHour(h)}>
+                                {pad(h)}–{pad(h + duration)}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
                       {loadingAlternatives ? (
-                        <div className="skeleton" style={{ height: 72 }} />
+                        <div className="skeleton" style={{ height: 72, marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }} />
                       ) : alternatives.length > 0 ? (
                         <>
-                          <div className="alt-head">Similar spaces free at this time</div>
+                          <div className="alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }}>
+                            Or try another venue at {pad(hour)}–{pad(hour + duration)}
+                          </div>
                           <div className="alt-grid">
                             {alternatives.map(alt => (
                               <button key={alt.id} className="alt-card" onClick={() => selectAlternativeVenue(alt)}>
@@ -260,12 +280,12 @@ export default function BookingPage() {
                             ))}
                           </div>
                         </>
-                      ) : (
+                      ) : nearestFreeSlots.length === 0 ? (
                         <div className="alt-empty">
                           <span>
                             {waitlisted
                               ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
-                              : 'No similar space is free at this time. Join the waitlist and we’ll email you if the slot opens.'}
+                              : 'Nothing else is free at this time. Join the waitlist and we’ll email you if the slot opens.'}
                           </span>
                           {!waitlisted && (
                             <button type="button" className="btn btn-outline btn-sm" onClick={joinWaitlist}>
@@ -273,7 +293,7 @@ export default function BookingPage() {
                             </button>
                           )}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>
