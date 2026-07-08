@@ -8,6 +8,7 @@ from django.utils import timezone
 class UserRole(models.TextChoices):
     ADMIN        = 'ADMIN',        'Admin'
     RECEPTIONIST = 'RECEPTIONIST', 'Receptionist'
+    VC           = 'VC',           'Vice-Chancellor'
     STAFF        = 'STAFF',        'Staff'
     STUDENT      = 'STUDENT',      'Student'
 
@@ -92,6 +93,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_student(self):
         return self.role == UserRole.STUDENT
+
+    @property
+    def is_vc(self):
+        return self.role == UserRole.VC
 
     @property
     def full_name(self):

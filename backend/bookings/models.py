@@ -34,6 +34,10 @@ class Booking(models.Model):
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
+    is_full_day = models.BooleanField(
+        default=False,
+        help_text='Booked for the whole operating day (start/end still store the actual hours).',
+    )
     status = models.CharField(
         max_length=10,
         choices=BookingStatus.choices,
