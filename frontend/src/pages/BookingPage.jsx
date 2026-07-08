@@ -28,7 +28,12 @@ export default function BookingPage() {
   const [venues, setVenues] = useState([]);
   const [venueId, setVenueId] = useState(state?.venueId ?? null);
   const [date, setDate] = useState(state?.date || todayISO());
+  // `hour` only ever holds a confirmed-free slot — a busy slot can never
+  // become "selected". Clicking a busy slot instead sets `triedHour`, which
+  // drives the conflict message and suggestions, so the user is redirected
+  // to a working time/venue the moment they hit a clash, not at submission.
   const [hour, setHour] = useState(state?.hour ?? null);
+  const [triedHour, setTriedHour] = useState(null);
   const [duration, setDuration] = useState(2);
   const [taken, setTaken] = useState([]);
   const [purpose, setPurpose] = useState('');
@@ -68,26 +73,47 @@ export default function BookingPage() {
   // These derivations only depend on state/props already declared above,
   // so they must live before the effects that reference them in their dep arrays.
   const venue = venues.find(v => v.id === Number(venueId));
-  const clash = hour != null && overlaps(taken, hour, duration);
-  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
-  // user actually wanted — so the first suggestion is the least disruptive.
-  const nearestFreeSlots = useMemo(() => {
-    if (!clash) return [];
-    return HOURS
-      .filter(h => h !== hour && !overlaps(taken, h, duration))
-      .sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour) || a - b)
-      .slice(0, 3);
-  }, [clash, taken, duration, hour]);
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
 
+  // If a duration change or a fresh availability fetch turns the currently
+  // selected hour into a clash, demote it immediately rather than letting an
+  // invalid slot sit there looking "selected".
   useEffect(() => {
-    if (!clash || !venue || hour === null) {
+    if (hour != null && overlaps(taken, hour, duration)) {
+      setTriedHour(hour);
+      setHour(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taken, duration]);
+
+  function pickHour(h) {
+    if (overlaps(taken, h, duration)) {
+      setHour(null);
+      setTriedHour(h);
+    } else {
+      setHour(h);
+      setTriedHour(null);
+    }
+  }
+
+  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
+  // user actually tried — so the first suggestion is the least disruptive.
+  const nearestFreeSlots = useMemo(() => {
+    if (triedHour == null) return [];
+    return HOURS
+      .filter(h => h !== triedHour && !overlaps(taken, h, duration))
+      .sort((a, b) => Math.abs(a - triedHour) - Math.abs(b - triedHour) || a - b)
+      .slice(0, 3);
+  }, [triedHour, taken, duration]);
+
+  useEffect(() => {
+    if (triedHour == null || !venue) {
       setAlternatives([]);
       return;
     }
     setLoadingAlternatives(true);
-    const startTime = pad(hour);
-    const endTime = pad(hour + duration);
+    const startTime = pad(triedHour);
+    const endTime = pad(triedHour + duration);
     api.get('/venues/alternatives/', {
       params: {
         date,
@@ -100,13 +126,13 @@ export default function BookingPage() {
       .then(r => setAlternatives(r.data))
       .catch(() => setAlternatives([]))
       .finally(() => setLoadingAlternatives(false));
-  }, [clash, venue, hour, duration, date, attendees]);
+  }, [triedHour, venue, duration, date, attendees]);
 
-  useEffect(() => { setWaitlisted(false); }, [venueId, date, hour, duration]);
+  useEffect(() => { setWaitlisted(false); }, [venueId, date, triedHour, duration]);
 
   const canContinue =
     step === 1 ? !!venue :
-    step === 2 ? hour != null && !clash :
+    step === 2 ? hour != null :
     step === 3 ? agree && !overCap && !submitting && (!repeatOn || !!repeatUntil) :
     false;
 
@@ -138,7 +164,7 @@ export default function BookingPage() {
   }
 
   function reset() {
-    setStep(1); setHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
+    setStep(1); setHour(null); setTriedHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
     setRepeatOn(false); setRepeatUntil(''); setWaitlisted(false);
   }
 
@@ -146,6 +172,8 @@ export default function BookingPage() {
     setVenues(prev => prev.some(v => v.id === altVenue.id) ? prev : [...prev, altVenue]);
     setVenueId(altVenue.id);
     setAlternatives([]);
+    // The alternative was suggested because it's free at triedHour — confirm it.
+    if (triedHour != null) { setHour(triedHour); setTriedHour(null); }
   }
 
   async function joinWaitlist() {
@@ -153,8 +181,8 @@ export default function BookingPage() {
       await api.post('/bookings/waitlist/', {
         venue: venue.id,
         date,
-        start_time: pad(hour),
-        end_time: pad(hour + duration),
+        start_time: pad(triedHour),
+        end_time: pad(triedHour + duration),
       });
       setWaitlisted(true);
     } catch (err) {
@@ -191,7 +219,7 @@ export default function BookingPage() {
                 {venues.slice(0, 6).map(v => {
                   const mono = v.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
                   return (
-                    <button key={v.id} className={`vp${v.id === Number(venueId) ? ' on' : ''}`} onClick={() => { setVenueId(v.id); setHour(null); }}>
+                    <button key={v.id} className={`vp${v.id === Number(venueId) ? ' on' : ''}`} onClick={() => { setVenueId(v.id); setHour(null); setTriedHour(null); }}>
                       <span className="vpi" style={{ background: venueGradient(v.id) }}>
                         <span className="vpi-mono">{mono}</span>
                       </span>
@@ -214,14 +242,14 @@ export default function BookingPage() {
               <p className="muted" style={{ marginBottom: '1.2rem', fontSize: '.92rem' }}>We'll flag any clashes before you submit.</p>
               <div className="field" style={{ marginBottom: '1.2rem', maxWidth: 260 }}>
                 <label htmlFor="book-date">Date</label>
-                <input id="book-date" className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); }} />
+                <input id="book-date" className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); setTriedHour(null); }} />
               </div>
               <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
               <div className="time-grid">
                 {HOURS.map(h => {
                   const busy = overlaps(taken, h, duration);
                   return (
-                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}`} onClick={() => setHour(h)}>
+                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`} onClick={() => pickHour(h)}>
                       {pad(h)}
                     </button>
                   );
@@ -234,68 +262,69 @@ export default function BookingPage() {
                 </select>
               </div>
               {hour != null && (
+                <div className="conflict ok">
+                  <Icon.Approvals strokeWidth={2} />
+                  <span>{pad(hour)}–{pad(hour + duration)} is free. No clashes detected for this slot.</span>
+                </div>
+              )}
+
+              {triedHour != null && (
                 <div>
-                  <div className={`conflict${clash ? '' : ' ok'}`}>
-                    {clash ? <Icon.X strokeWidth={2} /> : <Icon.Approvals strokeWidth={2} />}
-                    <span>
-                      {clash
-                        ? `${pad(hour)}–${pad(hour + duration)} overlaps an existing booking. Pick another time or venue below.`
-                        : `${pad(hour)}–${pad(hour + duration)} is free. No clashes detected for this slot.`}
-                    </span>
+                  <div className="conflict">
+                    <Icon.X strokeWidth={2} />
+                    <span>{pad(triedHour)}–{pad(triedHour + duration)} is already booked. Pick another time or venue below.</span>
                   </div>
 
-                  {clash && (
-                    <div className="alternatives">
-                      {nearestFreeSlots.length > 0 && (
-                        <>
-                          <div className="alt-head">Try a different time for {venue?.name}</div>
-                          <div className="alt-time-row">
-                            {nearestFreeSlots.map(h => (
-                              <button key={h} type="button" className="alt-time-chip" onClick={() => setHour(h)}>
-                                {pad(h)}–{pad(h + duration)}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-
-                      {loadingAlternatives ? (
-                        <div className="skeleton" style={{ height: 72, marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }} />
-                      ) : alternatives.length > 0 ? (
-                        <>
-                          <div className="alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }}>
-                            Or try another venue at {pad(hour)}–{pad(hour + duration)}
-                          </div>
-                          <div className="alt-grid">
-                            {alternatives.map(alt => (
-                              <button key={alt.id} className="alt-card" onClick={() => selectAlternativeVenue(alt)}>
-                                <div className="alt-name">{alt.name}</div>
-                                <div className="alt-specs">{alt.building || alt.location} · {alt.capacity} cap</div>
-                                {alt.amenities?.length > 0 && (
-                                  <div className="alt-amenities">
-                                    {alt.amenities.slice(0, 3).map(a => <span key={a}>{a}</span>)}
-                                  </div>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : nearestFreeSlots.length === 0 ? (
-                        <div className="alt-empty">
-                          <span>
-                            {waitlisted
-                              ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
-                              : 'Nothing else is free at this time. Join the waitlist and we’ll email you if the slot opens.'}
-                          </span>
-                          {!waitlisted && (
-                            <button type="button" className="btn btn-outline btn-sm" onClick={joinWaitlist}>
-                              Join waitlist
+                  <div className="alternatives">
+                    {nearestFreeSlots.length > 0 && (
+                      <>
+                        <div className="alt-head">Try a different time for {venue?.name}</div>
+                        <div className="alt-time-row">
+                          {nearestFreeSlots.map(h => (
+                            <button key={h} type="button" className="alt-time-chip" onClick={() => pickHour(h)}>
+                              {pad(h)}–{pad(h + duration)}
                             </button>
-                          )}
+                          ))}
                         </div>
-                      ) : null}
-                    </div>
-                  )}
+                      </>
+                    )}
+
+                    {loadingAlternatives ? (
+                      <div className="skeleton" style={{ height: 72, marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }} />
+                    ) : alternatives.length > 0 ? (
+                      <>
+                        <div className="alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? '1.1rem' : 0 }}>
+                          Or try another venue at {pad(triedHour)}–{pad(triedHour + duration)}
+                        </div>
+                        <div className="alt-grid">
+                          {alternatives.map(alt => (
+                            <button key={alt.id} className="alt-card" onClick={() => selectAlternativeVenue(alt)}>
+                              <div className="alt-name">{alt.name}</div>
+                              <div className="alt-specs">{alt.building || alt.location} · {alt.capacity} cap</div>
+                              {alt.amenities?.length > 0 && (
+                                <div className="alt-amenities">
+                                  {alt.amenities.slice(0, 3).map(a => <span key={a}>{a}</span>)}
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : nearestFreeSlots.length === 0 ? (
+                      <div className="alt-empty">
+                        <span>
+                          {waitlisted
+                            ? `You're on the waitlist — we'll email you if ${pad(triedHour)}–${pad(triedHour + duration)} frees up.`
+                            : 'Nothing else is free at this time. Join the waitlist and we’ll email you if the slot opens.'}
+                        </span>
+                        {!waitlisted && (
+                          <button type="button" className="btn btn-outline btn-sm" onClick={joinWaitlist}>
+                            Join waitlist
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>

@@ -30,7 +30,12 @@ export default function BookFlow() {
     d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   })());
+  // `hour` only ever holds a confirmed-free slot; a busy slot can never
+  // become "selected" — it sets `triedHour` instead, which drives the
+  // conflict message and suggestions immediately, before the user can
+  // proceed with a doomed request.
   const [hour, setHour] = useState(state?.hour ?? null);
+  const [triedHour, setTriedHour] = useState(null);
   const [duration, setDuration] = useState(2);
   const [taken, setTaken] = useState([]);
   const [purpose, setPurpose] = useState('');
@@ -67,29 +72,49 @@ export default function BookFlow() {
   }, [venueId, date]);
 
   const venue = venues.find((v) => v.id === Number(venueId));
-  const clash = hour != null && overlaps(taken, hour, duration);
-  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
-  // user actually wanted — so the first suggestion is the least disruptive.
-  const nearestFreeSlots = useMemo(() => {
-    if (!clash) return [];
-    return HOURS
-      .filter((h) => h !== hour && !overlaps(taken, h, duration))
-      .sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour) || a - b)
-      .slice(0, 3);
-  }, [clash, taken, duration, hour]);
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
 
-  // AI suggestions: when the chosen slot clashes, fetch similar venues that
+  // If a duration change or a fresh availability fetch turns the currently
+  // selected hour into a clash, demote it immediately.
+  useEffect(() => {
+    if (hour != null && overlaps(taken, hour, duration)) {
+      setTriedHour(hour);
+      setHour(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taken, duration]);
+
+  function pickHour(h) {
+    if (overlaps(taken, h, duration)) {
+      setHour(null);
+      setTriedHour(h);
+    } else {
+      setHour(h);
+      setTriedHour(null);
+    }
+  }
+
+  // Up to 3 free slots for the same venue, ranked by closeness to the hour the
+  // user actually tried — so the first suggestion is the least disruptive.
+  const nearestFreeSlots = useMemo(() => {
+    if (triedHour == null) return [];
+    return HOURS
+      .filter((h) => h !== triedHour && !overlaps(taken, h, duration))
+      .sort((a, b) => Math.abs(a - triedHour) - Math.abs(b - triedHour) || a - b)
+      .slice(0, 3);
+  }, [triedHour, taken, duration]);
+
+  // AI suggestions: when a busy slot is tried, fetch similar venues that
   // ARE free at this time, ranked by capacity + amenities + building match.
   useEffect(() => {
-    if (!clash || !venue || hour == null) { setAlternatives([]); return; }
+    if (triedHour == null || !venue) { setAlternatives([]); return; }
     let stale = false;
     setLoadingAlt(true);
     api.get('/venues/alternatives/', {
       params: {
         date,
-        start_time: pad(hour),
-        end_time: pad(hour + duration),
+        start_time: pad(triedHour),
+        end_time: pad(triedHour + duration),
         current_venue_id: venue.id,
         min_capacity: attendees ? Number(attendees) : 1,
       },
@@ -98,15 +123,15 @@ export default function BookFlow() {
       .catch(() => { if (!stale) setAlternatives([]); })
       .finally(() => { if (!stale) setLoadingAlt(false); });
     return () => { stale = true; };
-  }, [clash, venue, hour, duration, date, attendees]);
+  }, [triedHour, venue, duration, date, attendees]);
 
-  useEffect(() => { setWaitlisted(false); }, [venueId, date, hour, duration]);
+  useEffect(() => { setWaitlisted(false); }, [venueId, date, triedHour, duration]);
 
   function selectAlternative(alt) {
     setVenues((prev) => (prev.some((v) => v.id === alt.id) ? prev : [...prev, alt]));
     setVenueId(alt.id);
     setAlternatives([]);
-    setHour(null);
+    if (triedHour != null) { setHour(triedHour); setTriedHour(null); }
   }
 
   async function joinWaitlist() {
@@ -114,8 +139,8 @@ export default function BookFlow() {
       await api.post('/bookings/waitlist/', {
         venue: venue.id,
         date,
-        start_time: pad(hour),
-        end_time: pad(hour + duration),
+        start_time: pad(triedHour),
+        end_time: pad(triedHour + duration),
       });
       setWaitlisted(true);
       toast('Added to the waitlist');
@@ -151,7 +176,7 @@ export default function BookFlow() {
   }
 
   function reset() {
-    setStep(1); setHour(null); setPurpose(''); setAttendees(''); setNotes('');
+    setStep(1); setHour(null); setTriedHour(null); setPurpose(''); setAttendees(''); setNotes('');
     setAgree(false); setCreated(null); setError('');
     setRepeatOn(false); setRepeatUntil('');
   }
@@ -182,7 +207,7 @@ export default function BookFlow() {
                 <button
                   key={v.id}
                   className={`m-vp-card${v.id === Number(venueId) ? ' on' : ''}`}
-                  onClick={() => { setVenueId(v.id); setHour(null); }}
+                  onClick={() => { setVenueId(v.id); setHour(null); setTriedHour(null); }}
                 >
                   <div className="m-vp-vis">
                     <div className="m-vt-fill" style={{ background: venueGradient(v.id) }} />
@@ -200,7 +225,7 @@ export default function BookFlow() {
           <div className="m-book-fields">
             <div className="field">
               <label htmlFor="m-book-date">Date</label>
-              <input id="m-book-date" className="input" type="date" min={todayISO()} value={date} onChange={(e) => { setDate(e.target.value); setHour(null); }} />
+              <input id="m-book-date" className="input" type="date" min={todayISO()} value={date} onChange={(e) => { setDate(e.target.value); setHour(null); setTriedHour(null); }} />
             </div>
           </div>
           <div className="m-book-footer">
@@ -225,8 +250,8 @@ export default function BookFlow() {
               return (
                 <button
                   key={h}
-                  className={`m-time-btn${hour === h ? ' on' : ''}${busy ? ' busy' : ''}`}
-                  onClick={() => setHour(h)}
+                  className={`m-time-btn${hour === h ? ' on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`}
+                  onClick={() => pickHour(h)}
                 >
                   {pad(h)}
                 </button>
@@ -235,67 +260,68 @@ export default function BookFlow() {
           </div>
 
           {hour != null && (
-            <div className={`m-conflict-box ${clash ? 'err' : 'ok'}`}>
-              {clash
-                ? <Icon.X width={18} height={18} />
-                : <Icon.Check width={18} height={18} />}
-              <span>
-                {clash
-                  ? `${pad(hour)} overlaps an existing booking. Pick another time or venue below.`
-                  : `${pad(hour)}–${pad(hour + duration)} is free. No conflicts detected.`}
-              </span>
+            <div className="m-conflict-box ok">
+              <Icon.Check width={18} height={18} />
+              <span>{pad(hour)}–{pad(hour + duration)} is free. No conflicts detected.</span>
             </div>
           )}
 
-          {clash && (
-            <div className="m-alt">
-              {nearestFreeSlots.length > 0 && (
-                <>
-                  <div className="m-alt-head"><Icon.Clock width={14} height={14} /> Try a different time</div>
-                  <div className="m-alt-time-row">
-                    {nearestFreeSlots.map((h) => (
-                      <button key={h} type="button" className="m-alt-time-chip" onClick={() => setHour(h)}>
-                        {pad(h)}–{pad(h + duration)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+          {triedHour != null && (
+            <>
+              <div className="m-conflict-box err">
+                <Icon.X width={18} height={18} />
+                <span>{pad(triedHour)} is already booked. Pick another time or venue below.</span>
+              </div>
 
-              {loadingAlt ? (
-                <div className="m-alt-row" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
-                  {[1, 2].map((i) => <div className="skel" key={i} style={{ minWidth: 150, height: 96, borderRadius: 16 }} />)}
-                </div>
-              ) : alternatives.length > 0 ? (
-                <>
-                  <div className="m-alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
-                    <Icon.Search width={14} height={14} /> Or try another venue at {pad(hour)}–{pad(hour + duration)}
+              <div className="m-alt">
+                {nearestFreeSlots.length > 0 && (
+                  <>
+                    <div className="m-alt-head"><Icon.Clock width={14} height={14} /> Try a different time</div>
+                    <div className="m-alt-time-row">
+                      {nearestFreeSlots.map((h) => (
+                        <button key={h} type="button" className="m-alt-time-chip" onClick={() => pickHour(h)}>
+                          {pad(h)}–{pad(h + duration)}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {loadingAlt ? (
+                  <div className="m-alt-row" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
+                    {[1, 2].map((i) => <div className="skel" key={i} style={{ minWidth: 150, height: 96, borderRadius: 16 }} />)}
                   </div>
-                  <div className="m-alt-row">
-                    {alternatives.map((alt) => (
-                      <button key={alt.id} className="m-alt-card" onClick={() => selectAlternative(alt)}>
-                        <div className="m-alt-vis" style={{ background: venueGradient(alt.id) }}>
-                          {alt.similarity_score != null && <span className="m-alt-score">{Math.round(alt.similarity_score)}% match</span>}
-                        </div>
-                        <div className="m-alt-body">
-                          <div className="m-alt-name">{alt.name}</div>
-                          <div className="m-alt-meta">{alt.building || alt.location} · {alt.capacity} cap</div>
-                        </div>
-                      </button>
-                    ))}
+                ) : alternatives.length > 0 ? (
+                  <>
+                    <div className="m-alt-head" style={{ marginTop: nearestFreeSlots.length > 0 ? 14 : 0 }}>
+                      <Icon.Search width={14} height={14} /> Or try another venue at {pad(triedHour)}–{pad(triedHour + duration)}
+                    </div>
+                    <div className="m-alt-row">
+                      {alternatives.map((alt) => (
+                        <button key={alt.id} className="m-alt-card" onClick={() => selectAlternative(alt)}>
+                          <div className="m-alt-vis" style={{ background: venueGradient(alt.id) }}>
+                            {alt.similarity_score != null && <span className="m-alt-score">{Math.round(alt.similarity_score)}% match</span>}
+                          </div>
+                          <div className="m-alt-body">
+                            <div className="m-alt-name">{alt.name}</div>
+                            <div className="m-alt-meta">{alt.building || alt.location} · {alt.capacity} cap</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : nearestFreeSlots.length === 0 ? (
+                  <div className="m-alt-empty">
+                    <span>{waitlisted
+                      ? `You're on the waitlist — we'll email you if ${pad(triedHour)}–${pad(triedHour + duration)} frees up.`
+                      : 'Nothing else is free then. Join the waitlist and we’ll email you if it opens.'}</span>
+                    {!waitlisted && (
+                      <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={joinWaitlist}>Join waitlist</button>
+                    )}
                   </div>
-                </>
-              ) : nearestFreeSlots.length === 0 ? (
-                <div className="m-alt-empty">
-                  <span>{waitlisted
-                    ? `You're on the waitlist — we'll email you if ${pad(hour)}–${pad(hour + duration)} frees up.`
-                    : 'Nothing else is free then. Join the waitlist and we’ll email you if it opens.'}</span>
-                  {!waitlisted && (
-                    <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={joinWaitlist}>Join waitlist</button>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            </>
           )}
 
           <div className="m-book-fields">
@@ -309,7 +335,7 @@ export default function BookFlow() {
 
           <div className="m-book-footer m-book-footer-split">
             <button className="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} disabled={hour == null || clash} onClick={() => setStep(3)}>
+            <button className="btn btn-primary" style={{ flex: 1 }} disabled={hour == null} onClick={() => setStep(3)}>
               Add details <Icon.Arrow width={18} height={18} />
             </button>
           </div>

@@ -282,6 +282,7 @@
 .m-time-btn { height: 48px; border-radius: 16px; font-size: 13px; font-weight: 800; background: var(--surface); border: 1.5px solid var(--line-2); color: var(--ink); transition: all .3s var(--m-spring); }
 .m-time-btn.on { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); box-shadow: 0 4px 12px -3px rgba(24,24,27,.32); transform: scale(1.04); }
 .m-time-btn.busy { background: var(--canvas-2); color: var(--ink-45); text-decoration: line-through; }
+.m-time-btn.tried { border-color: var(--danger); box-shadow: inset 0 0 0 1.5px var(--danger); }
 .m-conflict-box { margin: 12px 20px 0; padding: 12px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; display: flex; gap: 10px; align-items: flex-start; }
 .m-conflict-box.ok { background: var(--success-soft); color: var(--success); }
 .m-conflict-box.err { background: var(--warn-soft); color: var(--warn); }
