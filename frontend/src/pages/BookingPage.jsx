@@ -50,6 +50,10 @@ export default function BookingPage() {
   const [repeatOn, setRepeatOn] = useState(false);
   const [repeatFreq, setRepeatFreq] = useState('weekly');
   const [repeatUntil, setRepeatUntil] = useState('');
+  // Bumped to force a re-fetch of availability after a submit-time conflict
+  // (someone else grabbed the slot between page load and Submit) so the
+  // time grid reflects reality before the user picks another slot.
+  const [availabilityNonce, setAvailabilityNonce] = useState(0);
   const revealRef = useReveal([venues.length > 0]);
 
   useEffect(() => {
@@ -68,7 +72,8 @@ export default function BookingPage() {
       .then(r => { if (!stale) setTaken(r.data.taken_slots); })
       .catch(() => { if (!stale) setTaken([]); });
     return () => { stale = true; };
-  }, [venueId, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venueId, date, availabilityNonce]);
 
   // These derivations only depend on state/props already declared above,
   // so they must live before the effects that reference them in their dep arrays.
@@ -157,7 +162,18 @@ export default function BookingPage() {
       setStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not submit the request — please try again.');
+      if (err.response?.status === 409) {
+        // Someone else grabbed this slot between page load and Submit.
+        // Send the user straight back into the same clash-resolution flow
+        // used for a live pick, instead of a dead-end error message.
+        setTriedHour(hour);
+        setHour(null);
+        setAvailabilityNonce(n => n + 1);
+        setStep(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setError(err.response?.data?.detail || 'Could not submit the request — please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

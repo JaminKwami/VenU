@@ -110,6 +110,21 @@ def _is_term_skip(date):
     ).exists()
 
 
+# ── Approver routing ──────────────────────────────────────────────────────────
+
+def can_decide_booking(user, venue):
+    """
+    Whether `user` may approve/reject a booking for `venue`. Venues flagged
+    requires_vc_approval are gated to the VC role (plus ADMIN, who can act as
+    a break-glass override); every other venue keeps the normal
+    ADMIN/RECEPTIONIST approval path, deliberately excluding VC so the role
+    stays scoped to its sign-off duty.
+    """
+    if venue.requires_vc_approval:
+        return bool(user.is_vc or user.is_admin)
+    return bool(user.is_staff_member)
+
+
 # ── Venue access check ────────────────────────────────────────────────────────
 
 def _check_venue_access(user, venue):
@@ -188,13 +203,17 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
 def create_recurring_bookings(user, venue, date, start_time, end_time,
                               frequency, until, **details):
     """
-    Create a weekly or bi-weekly series of bookings from `date` to `until`
-    (inclusive).  Dates that clash with existing bookings, or that fall within
-    a TermDate skip period, are skipped rather than failing the whole series.
+    Create a daily, weekly or bi-weekly series of bookings from `date` to
+    `until` (inclusive). Dates that clash with existing bookings, or that
+    fall within a TermDate skip period, are skipped rather than failing the
+    whole series.
+
+    `frequency='daily'` is what powers a multi-day event (e.g. a 3-day
+    summit): same venue and time block, one booking per consecutive day.
 
     Returns (created_bookings, skipped_dates).
     """
-    step = timedelta(days=14 if frequency == 'biweekly' else 7)
+    step = timedelta(days=1 if frequency == 'daily' else 14 if frequency == 'biweekly' else 7)
     if until < date:
         raise ValidationError('The series end date must be after the first booking.')
 

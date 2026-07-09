@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.permissions import IsAdmin, IsApprover, IsOwnerOrAdmin
+from core.permissions import IsAdmin, IsApprover, IsApproverOrVC, IsOwnerOrAdmin
 from venues.models import Venue
 from .models import AutoApprovalRule, Booking, BookingStatus, KeyHandout, TermDate, WaitlistEntry
 from .serializers import (
@@ -38,6 +38,12 @@ class BookingListCreateView(APIView):
     def get(self, request):
         if request.user.is_admin or request.user.is_staff_member:
             bookings = Booking.objects.select_related('user', 'venue', 'decided_by').all()
+        elif request.user.is_vc:
+            # VC sees their own bookings plus every booking on a venue that
+            # requires their sign-off — not the whole system.
+            bookings = Booking.objects.select_related('user', 'venue', 'decided_by').filter(
+                Q(user=request.user) | Q(venue__requires_vc_approval=True)
+            )
         else:
             bookings = Booking.objects.select_related('user', 'venue', 'decided_by').filter(user=request.user)
 
@@ -84,14 +90,16 @@ class BookingListCreateView(APIView):
             attendee_count=data.get('attendee_count'),
         )
 
-        # Optional recurrence: {"frequency": "weekly"|"biweekly", "until": "YYYY-MM-DD"}
+        # Optional recurrence: {"frequency": "daily"|"weekly"|"biweekly", "until": "YYYY-MM-DD"}
+        # "daily" is what a multi-day event (e.g. a 3-day summit) uses — same
+        # venue and time block, one booking per consecutive day.
         repeat = request.data.get('repeat')
         if repeat:
             frequency = repeat.get('frequency')
             until = parse_date(str(repeat.get('until', '')))
-            if frequency not in ('weekly', 'biweekly') or until is None:
+            if frequency not in ('daily', 'weekly', 'biweekly') or until is None:
                 return Response(
-                    {'detail': 'Recurrence needs a frequency (weekly/biweekly) and an end date.'},
+                    {'detail': 'Recurrence needs a frequency (daily/weekly/biweekly) and an end date.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
@@ -151,14 +159,22 @@ class BookingDetailView(APIView):
 
 
 class BookingApproveView(APIView):
-    """PATCH /api/bookings/{id}/approve/  — admin or receptionist"""
-    permission_classes = [IsApprover]
+    """PATCH /api/bookings/{id}/approve/  — admin/receptionist, or VC for VC-gated venues"""
+    permission_classes = [IsApproverOrVC]
 
     def patch(self, request, pk):
         try:
-            booking = Booking.objects.get(pk=pk)
+            booking = Booking.objects.select_related('venue').get(pk=pk)
         except Booking.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not services.can_decide_booking(request.user, booking.venue):
+            detail = (
+                'Only the VC can approve or decline bookings for this venue.'
+                if booking.venue.requires_vc_approval
+                else 'You are not authorized to decide this booking.'
+            )
+            return Response({'detail': detail}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             booking = services.approve_booking(booking, decided_by=request.user)
@@ -174,14 +190,22 @@ class BookingApproveView(APIView):
 
 
 class BookingRejectView(APIView):
-    """PATCH /api/bookings/{id}/reject/  — admin or receptionist"""
-    permission_classes = [IsApprover]
+    """PATCH /api/bookings/{id}/reject/  — admin/receptionist, or VC for VC-gated venues"""
+    permission_classes = [IsApproverOrVC]
 
     def patch(self, request, pk):
         try:
-            booking = Booking.objects.get(pk=pk)
+            booking = Booking.objects.select_related('venue').get(pk=pk)
         except Booking.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not services.can_decide_booking(request.user, booking.venue):
+            detail = (
+                'Only the VC can approve or decline bookings for this venue.'
+                if booking.venue.requires_vc_approval
+                else 'You are not authorized to decide this booking.'
+            )
+            return Response({'detail': detail}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             booking = services.reject_booking(

@@ -52,6 +52,10 @@ export default function BookFlow() {
   const [repeatUntil, setRepeatUntil] = useState('');
   const { toast } = useFeedback();
   const [waitlisted, setWaitlisted] = useState(false);
+  // Bumped to force a re-fetch of availability after a submit-time conflict
+  // (someone else grabbed the slot between page load and Submit) so the
+  // time grid reflects reality before the user picks another slot.
+  const [availabilityNonce, setAvailabilityNonce] = useState(0);
 
   useEffect(() => {
     api.get('/venues/').then((r) => {
@@ -69,7 +73,8 @@ export default function BookFlow() {
       .then((r) => { if (!stale) setTaken(r.data.taken_slots || []); })
       .catch(() => { if (!stale) setTaken([]); });
     return () => { stale = true; };
-  }, [venueId, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venueId, date, availabilityNonce]);
 
   const venue = venues.find((v) => v.id === Number(venueId));
   const overCap = venue && attendees && Number(attendees) > venue.capacity;
@@ -169,7 +174,18 @@ export default function BookFlow() {
       setCreated(res.data);
       setStep(4);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not submit the request — please try again.');
+      if (err.response?.status === 409) {
+        // Someone else grabbed this slot between page load and Submit.
+        // Send the user straight back into the same clash-resolution flow
+        // used for a live pick, instead of a dead-end error message.
+        setTriedHour(hour);
+        setHour(null);
+        setAvailabilityNonce((n) => n + 1);
+        setStep(2);
+        toast('That slot was just taken — pick another time or venue.');
+      } else {
+        setError(err.response?.data?.detail || 'Could not submit the request — please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

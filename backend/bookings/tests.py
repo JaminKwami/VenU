@@ -410,6 +410,121 @@ class ApprovalPermissionTest(TestCase):
         self.assertEqual(res.status_code, 403)
 
 
+class VcApprovalTest(TestCase):
+    """Venues flagged requires_vc_approval route only to VC (+ ADMIN override)."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.admin = make_user('vc-admin@test.com', UserRole.ADMIN)
+        self.receptionist = make_user('vc-recep@test.com', UserRole.RECEPTIONIST)
+        self.vc = make_user('vc-user@test.com', UserRole.VC)
+        self.student = make_user('vc-student@test.com', UserRole.STUDENT)
+        self.venue = Venue.objects.create(
+            name='Grand Hall', location='Admin Block', capacity=500, requires_vc_approval=True,
+        )
+        self.tomorrow = date.today() + timedelta(days=1)
+
+    def _pending(self):
+        return make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+
+    def test_vc_can_approve_vc_venue(self):
+        b = self._pending()
+        self.client.force_authenticate(self.vc)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertEqual(b.status, BookingStatus.APPROVED)
+
+    def test_admin_can_override_vc_venue(self):
+        b = self._pending()
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 200)
+
+    def test_receptionist_cannot_approve_vc_venue(self):
+        b = self._pending()
+        self.client.force_authenticate(self.receptionist)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 403)
+
+    def test_vc_cannot_approve_regular_venue(self):
+        regular_venue = make_venue('VC-Test Regular Room')
+        b = make_booking(self.student, regular_venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+        self.client.force_authenticate(self.vc)
+        res = self.client.patch(f'/api/bookings/{b.id}/approve/')
+        self.assertEqual(res.status_code, 403)
+
+    def test_vc_can_reject_vc_venue(self):
+        b = self._pending()
+        self.client.force_authenticate(self.vc)
+        res = self.client.patch(f'/api/bookings/{b.id}/reject/', {'reason': 'Not available'}, format='json')
+        self.assertEqual(res.status_code, 200)
+        b.refresh_from_db()
+        self.assertEqual(b.status, BookingStatus.REJECTED)
+
+    def test_vc_list_scoped_to_own_and_vc_venues(self):
+        regular_venue = make_venue('VC-Test Room 2')
+        own_booking = make_booking(self.vc, regular_venue, self.tomorrow, '11:00', '12:00', status=BookingStatus.PENDING)
+        vc_venue_booking = self._pending()
+        other_venue = make_venue('VC-Test Room 3')
+        other_booking = make_booking(self.student, other_venue, self.tomorrow, '13:00', '14:00', status=BookingStatus.PENDING)
+
+        self.client.force_authenticate(self.vc)
+        res = self.client.get('/api/bookings/')
+        self.assertEqual(res.status_code, 200)
+        ids = {b['id'] for b in res.data}
+        self.assertIn(own_booking.id, ids)
+        self.assertIn(vc_venue_booking.id, ids)
+        self.assertNotIn(other_booking.id, ids)
+
+
+class DailyRecurrenceTest(TestCase):
+    """Multi-day events (e.g. a 3-day summit) via frequency='daily'."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.user = make_user('summit@test.com', UserRole.STAFF)
+        self.venue = make_venue('Summit Hall')
+        self.start = date.today() + timedelta(days=7)
+
+    def test_service_creates_one_per_consecutive_day(self):
+        from bookings.services import create_recurring_bookings
+        created, skipped = create_recurring_bookings(
+            user=self.user, venue=self.venue, date=self.start,
+            start_time=time(9, 0), end_time=time(17, 0),
+            frequency='daily', until=self.start + timedelta(days=2),
+        )
+        self.assertEqual(len(created), 3)
+        self.assertEqual(skipped, [])
+        self.assertEqual({b.date for b in created}, {self.start + timedelta(days=i) for i in range(3)})
+        self.assertEqual(len({b.series_id for b in created}), 1)
+
+    def test_daily_skips_clashing_day_only(self):
+        from bookings.services import create_recurring_bookings
+        clash_day = self.start + timedelta(days=1)
+        make_booking(self.user, self.venue, clash_day, '09:00', '17:00', status=BookingStatus.APPROVED)
+
+        created, skipped = create_recurring_bookings(
+            user=self.user, venue=self.venue, date=self.start,
+            start_time=time(9, 0), end_time=time(17, 0),
+            frequency='daily', until=self.start + timedelta(days=2),
+        )
+        self.assertEqual(len(created), 2)
+        self.assertEqual(skipped, [clash_day])
+
+    def test_api_daily_repeat(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post('/api/bookings/', {
+            'venue': self.venue.id, 'date': self.start.isoformat(),
+            'start_time': '09:00', 'end_time': '17:00',
+            'repeat': {'frequency': 'daily', 'until': (self.start + timedelta(days=2)).isoformat()},
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['series_count'], 3)
+
+
 class FrontDeskTest(TestCase):
     """Front-desk: staff token-free check-in + key return; booker needs token."""
 

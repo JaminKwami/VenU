@@ -40,6 +40,24 @@ class IsApprover(BasePermission):
         )
 
 
+class IsApproverOrVC(BasePermission):
+    """
+    Allow access to users who may action SOME booking request — ADMIN,
+    RECEPTIONIST, or VC. This only gates entry to the approve/reject
+    endpoints; which specific bookings a VC or receptionist may decide is
+    enforced per-venue in the view via services.can_decide_booking(), since
+    a VC may only decide bookings for venues flagged requires_vc_approval
+    and a receptionist may not decide those.
+    """
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_staff_member or request.user.is_vc)
+        )
+
+
 class IsOwnerOrAdmin(BasePermission):
     """
     Object-level permission.
