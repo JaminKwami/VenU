@@ -357,6 +357,39 @@ def auto_release_no_shows(grace_minutes=15, dry_run=False):
     return count
 
 
+# ── Venue personnel alerts ────────────────────────────────────────────────────
+
+def _notify_venue_personnel(booking):
+    """
+    Called when a booking is approved. Alerts every staff member assigned to
+    the venue (VenuePersonnel) so they can prepare the space — e.g. a
+    caretaker unlocking the room, an AV tech setting up equipment. Sent via
+    both push and email since personnel may not have push subscriptions set
+    up (unlike the booker, who's actively using the app).
+    """
+    personnel = booking.venue.personnel.select_related('user').all()
+    if not personnel:
+        return
+
+    from notifications.services import notify_user
+
+    subject = f'Prepare {booking.venue.name} for {booking.date:%a %d %b}'
+    body = (
+        f'{booking.venue.name} is booked {booking.start_time:%H:%M}–{booking.end_time:%H:%M} '
+        f'on {booking.date:%a %d %b} by {booking.user.full_name or booking.user.email}'
+        + (f' — {booking.purpose}.' if booking.purpose else '.')
+    )
+    for p in personnel:
+        notify_user(p.user, subject, body, url='/dashboard')
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
+            recipient_list=[p.user.email],
+            fail_silently=True,
+        )
+
+
 # ── Approval workflow ─────────────────────────────────────────────────────────
 
 @transaction.atomic
@@ -389,6 +422,7 @@ def approve_booking(booking, decided_by=None):
         f'{booking.start_time:%H:%M}–{booking.end_time:%H:%M} is confirmed.',
         url='/my-bookings',
     )
+    _notify_venue_personnel(booking)
     return booking
 
 

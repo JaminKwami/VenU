@@ -15,7 +15,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from users.models import User, UserRole
-from venues.models import Venue
+from venues.models import Venue, VenuePersonnel
 from bookings.models import Booking, BookingStatus
 from bookings.services import (
     check_booking_conflict,
@@ -523,6 +523,50 @@ class DailyRecurrenceTest(TestCase):
         }, format='json')
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.data['series_count'], 3)
+
+
+class VenuePersonnelAlertTest(TestCase):
+    """Approving a booking alerts everyone assigned to look after the venue."""
+
+    def setUp(self):
+        self.admin = make_user('personnel-admin@test.com', UserRole.ADMIN)
+        self.student = make_user('personnel-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Alerted Hall')
+        self.caretaker = make_user('caretaker@test.com', UserRole.STAFF)
+        self.av_tech = make_user('av-tech@test.com', UserRole.STAFF)
+        VenuePersonnel.objects.create(venue=self.venue, user=self.caretaker, role_label='Caretaker')
+        VenuePersonnel.objects.create(venue=self.venue, user=self.av_tech, role_label='AV Technician')
+        self.tomorrow = date.today() + timedelta(days=1)
+
+    def test_approval_emails_all_assigned_personnel(self):
+        from django.core import mail
+        b = make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+        mail.outbox = []
+        approve_booking(b, decided_by=self.admin)
+
+        recipients = {r for m in mail.outbox for r in m.to}
+        self.assertIn(self.caretaker.email, recipients)
+        self.assertIn(self.av_tech.email, recipients)
+        # The booker's own approval email should NOT go through this path
+        # (that one is push-only via notify_user, not send_mail).
+        self.assertNotIn(self.student.email, recipients)
+
+    def test_venue_with_no_personnel_sends_no_extra_mail(self):
+        from django.core import mail
+        bare_venue = make_venue('Unassigned Room')
+        b = make_booking(self.student, bare_venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+        mail.outbox = []
+        approve_booking(b, decided_by=self.admin)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_rejecting_a_booking_does_not_alert_personnel(self):
+        from django.core import mail
+        b = make_booking(self.student, self.venue, self.tomorrow, '09:00', '10:00', status=BookingStatus.PENDING)
+        mail.outbox = []
+        from bookings.services import reject_booking
+        reject_booking(b, decided_by=self.admin, reason='Not available')
+        recipients = {r for m in mail.outbox for r in m.to}
+        self.assertNotIn(self.caretaker.email, recipients)
 
 
 class FrontDeskTest(TestCase):
