@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { Icon } from './icons';
+import { AMENITY_OPTIONS } from '../constants';
 import '../styles/venue-form.css';
 
 const VENUE_TYPES = [
   'Seminar room', 'Lecture hall', 'Lab', 'Auditorium',
   'Breakout room', 'Meeting room', 'Studio', 'Workshop',
-];
-
-const COMMON_AMENITIES = [
-  'Projector', 'Whiteboard', 'WiFi', 'Video conferencing',
-  'Wheelchair access', 'Air conditioning', 'PA system',
 ];
 
 /* DRF errors arrive as {field: ["msg", ...]} or {detail: "msg"}. */
@@ -136,7 +132,7 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
           <div className="field">
             <label>Amenities</label>
             <div className="amenity-chips">
-              {COMMON_AMENITIES.map(a => (
+              {AMENITY_OPTIONS.map(a => (
                 <button key={a} type="button" className={`amenity-chip${form.amenities.includes(a) ? ' on' : ''}`} onClick={() => toggleAmenity(a)}>
                   {a}
                 </button>

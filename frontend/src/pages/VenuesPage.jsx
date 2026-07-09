@@ -6,6 +6,8 @@ import { useReveal } from '../hooks/useReveal';
 import { useTopbar } from '../components/TopbarContext';
 import { Icon } from '../components/icons';
 import { venueGradient } from '../utils/venueUi';
+import { AMENITY_OPTIONS } from '../constants';
+import '../styles/venue-form.css';
 
 const CAP_RANGES = {
   'Any capacity': [0, Infinity],
@@ -25,7 +27,12 @@ export default function VenuesPage() {
   const [building, setBuilding] = useState('All buildings');
   const [capRange, setCapRange] = useState('Any capacity');
   const [type, setType] = useState('All types');
-  const revealRef = useReveal([venues != null, search, building, capRange, type]);
+  const [amenityFilter, setAmenityFilter] = useState([]);
+  const revealRef = useReveal([venues != null, search, building, capRange, type, amenityFilter]);
+
+  function toggleAmenity(a) {
+    setAmenityFilter(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
+  }
 
   useEffect(() => {
     api.get('/venues/').then(r => setVenues(r.data.results ?? r.data)).catch(() => setVenues([]));
@@ -50,9 +57,10 @@ export default function VenuesPage() {
         (v.amenities || []).some(a => a.toLowerCase().includes(q))) &&
       (building === 'All buildings' || v.building === building) &&
       (type === 'All types' || v.venue_type === type) &&
-      v.capacity >= lo && v.capacity <= hi,
+      v.capacity >= lo && v.capacity <= hi &&
+      amenityFilter.every(a => (v.amenities || []).includes(a)),
     );
-  }, [venues, search, building, capRange, type]);
+  }, [venues, search, building, capRange, type, amenityFilter]);
 
   const loading = venues == null;
   const buildingCount = new Set((venues || []).map(v => v.building).filter(Boolean)).size;
@@ -82,7 +90,7 @@ export default function VenuesPage() {
         </div>
       </div>
 
-      <div className="filter-bar reveal" data-d="1" style={{ marginBottom: '1.6rem' }}>
+      <div className="filter-bar reveal" data-d="1" style={{ marginBottom: '1rem' }}>
         <select className="select" style={{ maxWidth: 180 }} value={building} onChange={e => setBuilding(e.target.value)}>
           {buildings.map(b => <option key={b}>{b}</option>)}
         </select>
@@ -92,6 +100,22 @@ export default function VenuesPage() {
         <span className="toolbar-right count-label">
           {loading ? '…' : `Showing ${filtered.length} of ${venues.length}`}
         </span>
+      </div>
+
+      <div className="reveal" data-d="1" style={{ marginBottom: '1.6rem' }}>
+        <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Facilities</span>
+        <div className="amenity-chips" style={{ marginTop: 0 }}>
+          {AMENITY_OPTIONS.map(a => (
+            <button key={a} type="button" className={`amenity-chip${amenityFilter.includes(a) ? ' on' : ''}`} onClick={() => toggleAmenity(a)}>
+              {a}
+            </button>
+          ))}
+          {amenityFilter.length > 0 && (
+            <button type="button" className="amenity-chip" onClick={() => setAmenityFilter([])} style={{ color: 'var(--danger)' }}>
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -109,7 +133,7 @@ export default function VenuesPage() {
       ) : filtered.length === 0 ? (
         <div className="empty card" style={{ borderRadius: 'var(--r-lg)' }}>
           <span className="ic"><Icon.Venues width={24} height={24} /></span>
-          <span>{search || type !== 'All types' ? 'Nothing matches those filters.' : 'No venues in the catalogue yet.'}</span>
+          <span>{search || type !== 'All types' || capRange !== 'Any capacity' || amenityFilter.length > 0 ? 'Nothing matches those filters.' : 'No venues in the catalogue yet.'}</span>
         </div>
       ) : (
         <div className="lo-list lo-grid">
