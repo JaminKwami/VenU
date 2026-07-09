@@ -10,6 +10,12 @@ import { venueGradient, hm, prettyDate, todayISO } from '../utils/venueUi';
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 const DURATIONS = [1, 2, 3];
 const STEPS = ['Space', 'Schedule', 'Details', 'Confirm'];
+// A "full day" booking spans the venue's whole operating window rather than
+// a specific hour range — still just start/end times under the hood, so
+// every existing conflict/suggestion mechanism works unchanged.
+const FULL_DAY_START = 8;
+const FULL_DAY_END = 20;
+const FULL_DAY_DURATION = FULL_DAY_END - FULL_DAY_START;
 
 const pad = h => `${String(h).padStart(2, '0')}:00`;
 
@@ -35,6 +41,7 @@ export default function BookingPage() {
   const [hour, setHour] = useState(state?.hour ?? null);
   const [triedHour, setTriedHour] = useState(null);
   const [duration, setDuration] = useState(2);
+  const [isFullDay, setIsFullDay] = useState(false);
   const [taken, setTaken] = useState([]);
   const [purpose, setPurpose] = useState('');
   const [attendees, setAttendees] = useState('');
@@ -101,15 +108,38 @@ export default function BookingPage() {
     }
   }
 
+  function toggleFullDay(on) {
+    setIsFullDay(on);
+    if (!on) { setHour(null); setTriedHour(null); setDuration(2); }
+  }
+
+  // While "book the whole day" is on, re-check the fixed operating window
+  // every time the venue/date's availability changes — same clash-first
+  // invariant as pickHour, just for one fixed slot instead of 12 buttons.
+  useEffect(() => {
+    if (!isFullDay) return;
+    setDuration(FULL_DAY_DURATION);
+    if (overlaps(taken, FULL_DAY_START, FULL_DAY_DURATION)) {
+      setHour(null);
+      setTriedHour(FULL_DAY_START);
+    } else {
+      setHour(FULL_DAY_START);
+      setTriedHour(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullDay, taken]);
+
   // Up to 3 free slots for the same venue, ranked by closeness to the hour the
   // user actually tried — so the first suggestion is the least disruptive.
+  // Doesn't apply to a full-day clash: there's only one full-day slot to try
+  // on this venue, so the only useful suggestion is a different venue.
   const nearestFreeSlots = useMemo(() => {
-    if (triedHour == null) return [];
+    if (triedHour == null || isFullDay) return [];
     return HOURS
       .filter(h => h !== triedHour && !overlaps(taken, h, duration))
       .sort((a, b) => Math.abs(a - triedHour) - Math.abs(b - triedHour) || a - b)
       .slice(0, 3);
-  }, [triedHour, taken, duration]);
+  }, [triedHour, taken, duration, isFullDay]);
 
   useEffect(() => {
     if (triedHour == null || !venue) {
@@ -152,6 +182,7 @@ export default function BookingPage() {
         date,
         start_time: pad(hour),
         end_time: pad(hour + duration),
+        is_full_day: isFullDay,
         purpose,
         department,
         notes,
@@ -180,7 +211,7 @@ export default function BookingPage() {
   }
 
   function reset() {
-    setStep(1); setHour(null); setTriedHour(null); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
+    setStep(1); setHour(null); setTriedHour(null); setIsFullDay(false); setPurpose(''); setAttendees(''); setDepartment(''); setNotes(''); setAgree(false); setCreated(null); setError('');
     setRepeatOn(false); setRepeatUntil(''); setWaitlisted(false);
   }
 
@@ -260,23 +291,31 @@ export default function BookingPage() {
                 <label htmlFor="book-date">Date</label>
                 <input id="book-date" className="input" type="date" min={todayISO()} value={date} onChange={e => { setDate(e.target.value); setHour(null); setTriedHour(null); }} />
               </div>
-              <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
-              <div className="time-grid">
-                {HOURS.map(h => {
-                  const busy = overlaps(taken, h, duration);
-                  return (
-                    <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`} onClick={() => pickHour(h)}>
-                      {pad(h)}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="field" style={{ marginTop: '1.2rem', maxWidth: 260 }}>
-                <label htmlFor="book-duration">Duration</label>
-                <select id="book-duration" className="select" value={duration} onChange={e => setDuration(Number(e.target.value))}>
-                  {DURATIONS.map(d => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
-                </select>
-              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: '.9rem', fontWeight: 500, color: 'var(--ink-65)', marginBottom: '1.2rem' }}>
+                <input type="checkbox" checked={isFullDay} onChange={e => toggleFullDay(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                Book the whole day ({pad(FULL_DAY_START)}–{pad(FULL_DAY_END)})
+              </label>
+              {!isFullDay && (
+                <>
+                  <span className="label" style={{ display: 'block', marginBottom: '.5rem' }}>Start time</span>
+                  <div className="time-grid">
+                    {HOURS.map(h => {
+                      const busy = overlaps(taken, h, duration);
+                      return (
+                        <button key={h} className={`${hour === h ? 'on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`} onClick={() => pickHour(h)}>
+                          {pad(h)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="field" style={{ marginTop: '1.2rem', maxWidth: 260 }}>
+                    <label htmlFor="book-duration">Duration</label>
+                    <select id="book-duration" className="select" value={duration} onChange={e => setDuration(Number(e.target.value))}>
+                      {DURATIONS.map(d => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
               {hour != null && (
                 <div className="conflict ok">
                   <Icon.Approvals strokeWidth={2} />
@@ -373,13 +412,14 @@ export default function BookingPage() {
                 <div className="field" style={{ gap: '.7rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit', fontSize: '.9rem', fontWeight: 500, color: 'var(--ink-65)' }}>
                     <input type="checkbox" checked={repeatOn} onChange={e => setRepeatOn(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-                    Repeat this booking
+                    Repeat this booking <span className="opt-label">(e.g. a multi-day event)</span>
                   </label>
                   {repeatOn && (
                     <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
                       <div className="field" style={{ flex: 1, minWidth: 150 }}>
                         <label htmlFor="book-freq">Frequency</label>
                         <select id="book-freq" className="select" value={repeatFreq} onChange={e => setRepeatFreq(e.target.value)}>
+                          <option value="daily">Every day (e.g. a 3-day summit)</option>
                           <option value="weekly">Every week</option>
                           <option value="biweekly">Every two weeks</option>
                         </select>
@@ -451,7 +491,7 @@ export default function BookingPage() {
             <div className="sum-line"><span className="k">Venue</span><span className="v">{venue?.name || '—'}</span></div>
             <div className="sum-line"><span className="k">Location</span><span className="v">{venue ? `${venue.building || venue.location} · ${venue.capacity} cap` : '—'}</span></div>
             <div className="sum-line"><span className="k">Date</span><span className="v">{prettyDate(date)}</span></div>
-            <div className="sum-line"><span className="k">Time</span><span className="v">{hour != null ? `${pad(hour)} – ${pad(hour + duration)}` : '—'}</span></div>
+            <div className="sum-line"><span className="k">Time</span><span className="v">{hour != null ? (isFullDay ? `All day (${pad(hour)}–${pad(hour + duration)})` : `${pad(hour)} – ${pad(hour + duration)}`) : '—'}</span></div>
             <div className="sum-line"><span className="k">Attendees</span><span className="v">{attendees || '—'}</span></div>
             <div className="sum-line"><span className="k">Approval</span><span className="v">Facilities admin</span></div>
             <div style={{ marginTop: '1.1rem', padding: '.9rem 1rem', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--line)', fontSize: '.84rem', color: 'var(--ink-65)', display: 'flex', gap: '.6rem', alignItems: 'center' }}>

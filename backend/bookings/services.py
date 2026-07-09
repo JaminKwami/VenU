@@ -144,7 +144,8 @@ def _check_venue_access(user, venue):
 
 @transaction.atomic
 def create_booking(user, venue, date, start_time, end_time, purpose='',
-                   attendee_count=None, department='', notes='', series_id=None):
+                   attendee_count=None, department='', notes='', series_id=None,
+                   is_full_day=False):
     """
     Validate and create a new Booking.  Always call this instead of
     Booking.objects.create() directly.
@@ -190,6 +191,7 @@ def create_booking(user, venue, date, start_time, end_time, purpose='',
         date=date,
         start_time=start_time,
         end_time=end_time,
+        is_full_day=is_full_day,
         purpose=purpose,
         department=department,
         notes=notes,

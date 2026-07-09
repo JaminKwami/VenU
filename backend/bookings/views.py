@@ -88,6 +88,7 @@ class BookingListCreateView(APIView):
             department=data.get('department', ''),
             notes=data.get('notes', ''),
             attendee_count=data.get('attendee_count'),
+            is_full_day=data.get('is_full_day', False),
         )
 
         # Optional recurrence: {"frequency": "daily"|"weekly"|"biweekly", "until": "YYYY-MM-DD"}

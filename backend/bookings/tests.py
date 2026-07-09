@@ -525,6 +525,62 @@ class DailyRecurrenceTest(TestCase):
         self.assertEqual(res.data['series_count'], 3)
 
 
+class FullDayBookingTest(TestCase):
+    """
+    is_full_day must actually persist end to end. Regression coverage for a
+    bug where the flag was accepted by the serializer but silently dropped:
+    create_booking()'s signature didn't have an is_full_day parameter and
+    the view's `details` dict never included it, so every booking saved
+    with the model default (False) regardless of what was submitted.
+    """
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.user = make_user('fullday@test.com', UserRole.STAFF)
+        self.venue = make_venue('Full Day Hall')
+        self.tomorrow = date.today() + timedelta(days=1)
+
+    def test_service_persists_is_full_day(self):
+        b = create_booking(
+            user=self.user, venue=self.venue, date=self.tomorrow,
+            start_time=time(8, 0), end_time=time(20, 0), is_full_day=True,
+        )
+        b.refresh_from_db()
+        self.assertTrue(b.is_full_day)
+
+    def test_service_defaults_to_false(self):
+        b = create_booking(
+            user=self.user, venue=self.venue, date=self.tomorrow,
+            start_time=time(9, 0), end_time=time(10, 0),
+        )
+        self.assertFalse(b.is_full_day)
+
+    def test_api_single_booking_persists_is_full_day(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post('/api/bookings/', {
+            'venue': self.venue.id, 'date': self.tomorrow.isoformat(),
+            'start_time': '08:00', 'end_time': '20:00', 'is_full_day': True,
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertTrue(res.data['is_full_day'])
+        booking = Booking.objects.get(pk=res.data['id'])
+        self.assertTrue(booking.is_full_day)
+
+    def test_api_recurring_series_persists_is_full_day(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post('/api/bookings/', {
+            'venue': self.venue.id, 'date': self.tomorrow.isoformat(),
+            'start_time': '08:00', 'end_time': '20:00', 'is_full_day': True,
+            'repeat': {'frequency': 'daily', 'until': (self.tomorrow + timedelta(days=2)).isoformat()},
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['series_count'], 3)
+        series = Booking.objects.filter(series_id=res.data['series_id'])
+        self.assertEqual(series.count(), 3)
+        self.assertTrue(all(b.is_full_day for b in series))
+
+
 class VenuePersonnelAlertTest(TestCase):
     """Approving a booking alerts everyone assigned to look after the venue."""
 

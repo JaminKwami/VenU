@@ -9,6 +9,9 @@ import { useFeedback } from './MobileFeedback';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 const DURATIONS = [1, 2, 3];
+const FULL_DAY_START = 8;
+const FULL_DAY_END = 20;
+const FULL_DAY_DURATION = FULL_DAY_END - FULL_DAY_START;
 const pad = (h) => `${String(h).padStart(2, '0')}:00`;
 
 function overlaps(taken, startH, durH) {
@@ -37,6 +40,7 @@ export default function BookFlow() {
   const [hour, setHour] = useState(state?.hour ?? null);
   const [triedHour, setTriedHour] = useState(null);
   const [duration, setDuration] = useState(2);
+  const [isFullDay, setIsFullDay] = useState(false);
   const [taken, setTaken] = useState([]);
   const [purpose, setPurpose] = useState('');
   const [attendees, setAttendees] = useState('');
@@ -99,15 +103,37 @@ export default function BookFlow() {
     }
   }
 
+  function toggleFullDay(on) {
+    setIsFullDay(on);
+    if (!on) { setHour(null); setTriedHour(null); setDuration(2); }
+  }
+
+  // While "book the whole day" is on, re-check the fixed operating window
+  // every time the venue/date's availability changes.
+  useEffect(() => {
+    if (!isFullDay) return;
+    setDuration(FULL_DAY_DURATION);
+    if (overlaps(taken, FULL_DAY_START, FULL_DAY_DURATION)) {
+      setHour(null);
+      setTriedHour(FULL_DAY_START);
+    } else {
+      setHour(FULL_DAY_START);
+      setTriedHour(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullDay, taken]);
+
   // Up to 3 free slots for the same venue, ranked by closeness to the hour the
   // user actually tried — so the first suggestion is the least disruptive.
+  // Doesn't apply to a full-day clash: the only useful suggestion there is a
+  // different venue, not a different hour.
   const nearestFreeSlots = useMemo(() => {
-    if (triedHour == null) return [];
+    if (triedHour == null || isFullDay) return [];
     return HOURS
       .filter((h) => h !== triedHour && !overlaps(taken, h, duration))
       .sort((a, b) => Math.abs(a - triedHour) - Math.abs(b - triedHour) || a - b)
       .slice(0, 3);
-  }, [triedHour, taken, duration]);
+  }, [triedHour, taken, duration, isFullDay]);
 
   // AI suggestions: when a busy slot is tried, fetch similar venues that
   // ARE free at this time, ranked by capacity + amenities + building match.
@@ -166,6 +192,7 @@ export default function BookFlow() {
         date,
         start_time: pad(hour),
         end_time: pad(hour + duration),
+        is_full_day: isFullDay,
         purpose,
         notes,
         attendee_count: attendees ? Number(attendees) : null,
@@ -192,7 +219,7 @@ export default function BookFlow() {
   }
 
   function reset() {
-    setStep(1); setHour(null); setTriedHour(null); setPurpose(''); setAttendees(''); setNotes('');
+    setStep(1); setHour(null); setTriedHour(null); setIsFullDay(false); setPurpose(''); setAttendees(''); setNotes('');
     setAgree(false); setCreated(null); setError('');
     setRepeatOn(false); setRepeatUntil('');
   }
@@ -260,20 +287,27 @@ export default function BookFlow() {
             <h2>Pick a time</h2>
             <p className="m-book-hint">Select a start time.</p>
           </div>
-          <div className="m-time-grid">
-            {HOURS.map((h) => {
-              const busy = overlaps(taken, h, duration);
-              return (
-                <button
-                  key={h}
-                  className={`m-time-btn${hour === h ? ' on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`}
-                  onClick={() => pickHour(h)}
-                >
-                  {pad(h)}
-                </button>
-              );
-            })}
-          </div>
+          <label className="m-repeat-toggle" style={{ margin: '0 20px 12px' }}>
+            <span>Book the whole day ({pad(FULL_DAY_START)}–{pad(FULL_DAY_END)})</span>
+            <input type="checkbox" className="m-repeat-check" checked={isFullDay} onChange={(e) => toggleFullDay(e.target.checked)} />
+          </label>
+
+          {!isFullDay && (
+            <div className="m-time-grid">
+              {HOURS.map((h) => {
+                const busy = overlaps(taken, h, duration);
+                return (
+                  <button
+                    key={h}
+                    className={`m-time-btn${hour === h ? ' on' : ''}${busy ? ' busy' : ''}${triedHour === h ? ' tried' : ''}`}
+                    onClick={() => pickHour(h)}
+                  >
+                    {pad(h)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {hour != null && (
             <div className="m-conflict-box ok">
@@ -340,14 +374,16 @@ export default function BookFlow() {
             </>
           )}
 
-          <div className="m-book-fields">
-            <div className="field">
-              <label htmlFor="m-book-dur">Duration</label>
-              <select id="m-book-dur" className="input m-select" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {DURATIONS.map((d) => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
-              </select>
+          {!isFullDay && (
+            <div className="m-book-fields">
+              <div className="field">
+                <label htmlFor="m-book-dur">Duration</label>
+                <select id="m-book-dur" className="input m-select" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                  {DURATIONS.map((d) => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="m-book-footer m-book-footer-split">
             <button className="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
@@ -383,7 +419,7 @@ export default function BookFlow() {
 
             <div className="m-repeat">
               <label className="m-repeat-toggle">
-                <span>Repeat this booking</span>
+                <span>Repeat this booking <span className="m-opt">e.g. multi-day event</span></span>
                 <input type="checkbox" className="m-repeat-check" checked={repeatOn} onChange={(e) => setRepeatOn(e.target.checked)} />
               </label>
               {repeatOn && (
@@ -391,6 +427,7 @@ export default function BookFlow() {
                   <div className="field">
                     <label htmlFor="m-freq">Frequency</label>
                     <select id="m-freq" className="input m-select" value={repeatFreq} onChange={(e) => setRepeatFreq(e.target.value)}>
+                      <option value="daily">Every day (e.g. a 3-day summit)</option>
                       <option value="weekly">Every week</option>
                       <option value="biweekly">Every two weeks</option>
                     </select>
