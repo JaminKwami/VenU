@@ -1,5 +1,5 @@
 // VenU Service Worker — cache-first for assets, network-first for API
-const CACHE = 'venu-v1';
+const CACHE = 'venu-v2';
 const STATIC = [
   '/',
   '/index.html',
@@ -30,6 +30,11 @@ self.addEventListener('fetch', e => {
   const { request: req } = e;
   const url = new URL(req.url);
 
+  // The Cache API only accepts GET requests on http(s) — anything else
+  // (HEAD/POST, or chrome-extension:// requests injected by browser
+  // extensions) must skip caching entirely or cache.put() throws.
+  const cacheable = req.method === 'GET' && (url.protocol === 'http:' || url.protocol === 'https:');
+
   // API requests: network-first, fall through on failure
   if (url.pathname.startsWith('/api/')) {
     e.respondWith(
@@ -39,6 +44,8 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
+
+  if (!cacheable) return; // let the browser handle it normally
 
   // Static assets: cache-first
   e.respondWith(
