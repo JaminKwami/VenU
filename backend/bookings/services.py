@@ -8,9 +8,7 @@ signals, or a future async task queue without touching HTTP code.
 import uuid
 from datetime import datetime, timedelta
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -260,8 +258,9 @@ def join_waitlist(user, venue, date, start_time, end_time):
 
 def _notify_waitlist(booking):
     """
-    Called when a booking is cancelled or rejected.  Emails everyone waiting
-    for an overlapping slot on that venue/date and marks them notified.
+    Called when a booking is cancelled or rejected. Alerts everyone waiting
+    for an overlapping slot on that venue/date (in-app + push + email, since
+    they may not have the app open) and marks them notified.
     """
     entries = WaitlistEntry.objects.filter(
         venue=booking.venue,
@@ -271,17 +270,18 @@ def _notify_waitlist(booking):
         end_time__gt=booking.start_time,
     ).select_related('user')
 
+    from notifications.services import notify_user
     for entry in entries:
-        send_mail(
-            subject=f'A slot opened up at {booking.venue.name}',
-            message=(
+        notify_user(
+            entry.user,
+            f'A slot opened up at {booking.venue.name}',
+            (
                 f'Good news — {booking.venue.name} is now free on {entry.date} '
-                f'from {entry.start_time:%H:%M} to {entry.end_time:%H:%M}.\n'
+                f'from {entry.start_time:%H:%M} to {entry.end_time:%H:%M}. '
                 f'Slots are first come, first served: book it from your VenU dashboard.'
             ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
-            recipient_list=[entry.user.email],
-            fail_silently=True,
+            url='/book',
+            email=True,
         )
     entries.update(notified=True)
 
@@ -382,14 +382,7 @@ def _notify_venue_personnel(booking):
         + (f' — {booking.purpose}.' if booking.purpose else '.')
     )
     for p in personnel:
-        notify_user(p.user, subject, body, url='/dashboard')
-        send_mail(
-            subject=subject,
-            message=body,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
-            recipient_list=[p.user.email],
-            fail_silently=True,
-        )
+        notify_user(p.user, subject, body, url='/dashboard', email=True)
 
 
 # ── Approval workflow ─────────────────────────────────────────────────────────

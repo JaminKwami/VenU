@@ -4,9 +4,10 @@ import { useAuthStore } from '../store/authStore';
 import api from '../api/axios';
 import { Icon } from './icons';
 import AppearanceControl from './AppearanceControl';
+import NotificationBell from './NotificationBell';
 import { TopbarProvider, useTopbarState } from './TopbarContext';
 
-const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
+const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', VC: 'Vice-Chancellor', STAFF: 'Staff', STUDENT: 'Student' };
 
 function initials(user) {
   const name = user?.full_name || user?.email || '?';
@@ -20,6 +21,7 @@ function Topbar() {
       <div className="tb-title">{title}</div>
       <div className="tb-actions">
         {actions}
+        <NotificationBell />
         <AppearanceControl />
       </div>
     </header>

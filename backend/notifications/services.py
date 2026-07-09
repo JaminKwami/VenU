@@ -1,14 +1,19 @@
 """
-Web Push delivery (VAPID).
+Notification dispatch — the single entry point every part of the app
+should call to alert a user of something.
 
-All entry points degrade gracefully: if VAPID keys aren't configured, or
-pywebpush isn't installed, notify_user() is a silent no-op so the booking
-flow is never blocked by notification problems.
+notify_user() always creates the in-app Notification record (that's what
+powers the bell icon and never depends on any other channel being set
+up). Push and email are best-effort extra channels layered on top; a
+future SMS channel plugs in the same way. All channels degrade
+gracefully — a delivery problem on one channel never blocks the others
+or raises into the caller's booking/approval flow.
 """
 import json
 import logging
 
 from django.conf import settings
+from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +50,10 @@ def _send_one(subscription, payload):
         return True
 
 
-def notify_user(user, title, body, url='/my-bookings'):
-    """Push a notification to every device a user has registered. No-op if unconfigured."""
-    if not vapid_configured() or user is None:
+def _push_to_user(user, title, body, url):
+    """Best-effort Web Push to every device the user has registered. No-op if unconfigured."""
+    if not vapid_configured():
         return
-
     from .models import PushSubscription
 
     payload = {'title': title, 'body': body, 'url': url}
@@ -59,3 +63,31 @@ def notify_user(user, title, body, url='/my-bookings'):
             dead_ids.append(sub.id)
     if dead_ids:
         PushSubscription.objects.filter(id__in=dead_ids).delete()
+
+
+def notify_user(user, title, body, url='/dashboard', email=False):
+    """
+    Alert a user: always creates an in-app Notification (read by the bell
+    icon), always attempts push, and optionally sends email too.
+
+    `email=True` is for alerts where the recipient may not have the app
+    open any time soon (e.g. venue personnel preparing a space, or a
+    waitlist slot opening up) — most in-app-only alerts (booking decided,
+    etc.) don't need it since the booker is actively using the app.
+    """
+    if user is None:
+        return
+
+    from .models import Notification
+    Notification.objects.create(user=user, title=title, body=body, url=url)
+
+    _push_to_user(user, title, body, url)
+
+    if email:
+        send_mail(
+            subject=title,
+            message=body,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@venu.local'),
+            recipient_list=[user.email],
+            fail_silently=True,
+        )

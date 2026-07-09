@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/axios';
 import BottomTabBar from './BottomTabBar';
+import NotificationBell from '../components/NotificationBell';
 import { MobileFeedbackProvider } from './MobileFeedback';
 
 /*
@@ -30,6 +31,7 @@ export default function MobileLayout() {
   return (
     <MobileFeedbackProvider>
       <div className="m-app">
+        <div className="m-notif-float"><NotificationBell /></div>
         <main className="m-screens">
           {/* key on pathname remounts the screen so the slide-in animation fires */}
           <div className="m-screen" key={location.pathname}>

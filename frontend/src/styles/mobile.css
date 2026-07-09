@@ -23,6 +23,10 @@
 }
 [data-theme='dark'] .m-app { --m-sh-card: 0 2px 12px rgba(0, 0, 0, .4); }
 
+/* ─ Notification bell — floats top-right over every screen ─ */
+.m-notif-float { position: fixed; top: calc(var(--m-safe-t) + 14px); right: 14px; z-index: 60; }
+.m-notif-float .icon-btn { background: var(--surface); box-shadow: var(--m-sh-card); }
+
 /* ─ Screen scroll container + slide-in transition ─ */
 .m-screens {
   flex: 1;
