@@ -57,10 +57,7 @@ export default function LandingPage() {
             {authed ? (
               <Link className="btn btn-primary btn-sm" to="/dashboard" data-magnetic>Open dashboard</Link>
             ) : (
-              <>
-                <Link className="btn btn-ghost btn-sm" to="/login">Log in</Link>
-                <Link className="btn btn-primary btn-sm" to="/login" data-magnetic>Log in</Link>
-              </>
+              <Link className="btn btn-primary btn-sm" to="/login" data-magnetic>Log in</Link>
             )}
           </div>
         </nav>
