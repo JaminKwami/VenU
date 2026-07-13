@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [otp, setOtp] = useState('');
   const [ssoEnabled, setSsoEnabled] = useState(false);
@@ -62,6 +63,15 @@ export default function LoginPage() {
   const [mode, setMode] = useState(
     isResetLink ? 'reset' : (enrollToken ? 'register' : 'login'),
   );
+
+  // The free-tier backend spins down after idle and can take 30-60s to wake
+  // back up — after a few seconds of any in-flight request, say so instead
+  // of leaving "Signing in…" looking frozen.
+  useEffect(() => {
+    if (!loading) { setSlowLoading(false); return; }
+    const t = setTimeout(() => setSlowLoading(true), 4000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   async function handleForgot(e) {
     e.preventDefault();
@@ -232,6 +242,11 @@ export default function LoginPage() {
                 <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading}>
                   {loading ? (mfaRequired ? 'Verifying…' : 'Signing in…') : (mfaRequired ? 'Verify' : 'Sign in')}
                 </button>
+                {slowLoading && (
+                  <p style={{ fontSize: '.8rem', color: 'var(--ink-45)', textAlign: 'center', marginTop: '.6rem' }}>
+                    Waking up the server — this can take up to a minute after a period of inactivity.
+                  </p>
+                )}
               </form>
               <p className="auth-note" style={{ textAlign: 'center', marginTop: '1rem' }}>
                 <button

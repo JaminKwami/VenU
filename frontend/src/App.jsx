@@ -63,6 +63,7 @@ function Responsive({ mobile, desktop }) {
 export default function App() {
   const { accessToken, user, setUser } = useAuthStore();
   const [authReady, setAuthReady] = useState(false);
+  const [slow, setSlow] = useState(false);
 
   // On a fresh load (e.g. page refresh) only the tokens are rehydrated from
   // localStorage — the `user` object is not persisted. Re-fetch it before
@@ -82,9 +83,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The free-tier backend spins down after idle and can take 30-60s to wake
+  // back up. A bare spinner for that long reads as broken — after a few
+  // seconds, say what's actually happening instead of staying silent.
+  useEffect(() => {
+    if (authReady) { setSlow(false); return; }
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, [authReady]);
+
   if (!authReady) {
     return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', gap: '1rem' }}>
         <div
           aria-label="Loading"
           style={{
@@ -94,6 +104,11 @@ export default function App() {
             animation: 'venu-spin 0.8s linear infinite',
           }}
         />
+        {slow && (
+          <p style={{ fontSize: '.85rem', color: 'var(--ink-45, #71717a)', maxWidth: 280, textAlign: 'center' }}>
+            Waking up the server — this can take up to a minute after a period of inactivity.
+          </p>
+        )}
         <style>{'@keyframes venu-spin { to { transform: rotate(360deg); } }'}</style>
       </div>
     );
