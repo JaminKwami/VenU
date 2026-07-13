@@ -9,6 +9,7 @@ import { Icon } from '../components/icons';
 const ROLE_LABEL = {
   ADMIN:        'Admin',
   RECEPTIONIST: 'Receptionist',
+  VC:           'Vice-Chancellor',
   STAFF:        'Staff',
   STUDENT:      'Student',
 };
@@ -16,6 +17,7 @@ const ROLE_LABEL = {
 const ROLE_DESCRIPTIONS = {
   ADMIN:        'Full access — venues, users, settings, approvals.',
   RECEPTIONIST: 'Approve/decline requests, kiosk check-in, view all bookings.',
+  VC:           'Approves bookings for venues marked "VC approval required" only.',
   STAFF:        'Books spaces. May qualify for auto-approval rules.',
   STUDENT:      'Browse venues, create and cancel own bookings.',
 };

@@ -167,3 +167,63 @@ class VenueAlternativesTest(TestCase):
         ranked = get_venue_alternatives(self.tomorrow, time(10, 0), time(12, 0), self.origin.id, 1, user=self.student)
         venues = [v for v, _ in ranked]
         self.assertNotIn(self.good, venues)
+
+
+class VenuePersonnelApiTest(TestCase):
+    """Assigning/unassigning staff who prepare a venue — admin only."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        from venues.models import VenuePersonnel
+        self.VenuePersonnel = VenuePersonnel
+        self.client = APIClient()
+        self.admin = make_user('vp-admin@test.com', UserRole.ADMIN)
+        self.staff = make_user('vp-caretaker@test.com', UserRole.STAFF)
+        self.student = make_user('vp-student@test.com', UserRole.STUDENT)
+        self.venue = make_venue('Prep Hall')
+
+    def test_admin_can_assign_personnel(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post('/api/venues/personnel/', {
+            'venue': self.venue.id, 'user': self.staff.id, 'role_label': 'Caretaker',
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(self.venue.personnel.count(), 1)
+        self.assertEqual(res.data['role_label'], 'Caretaker')
+        self.assertEqual(res.data['user_email'], self.staff.email)
+
+    def test_non_admin_cannot_assign_personnel(self):
+        self.client.force_authenticate(self.student)
+        res = self.client.post('/api/venues/personnel/', {
+            'venue': self.venue.id, 'user': self.staff.id, 'role_label': 'Caretaker',
+        }, format='json')
+        self.assertEqual(res.status_code, 403)
+
+    def test_cannot_assign_same_person_twice_to_same_venue(self):
+        self.client.force_authenticate(self.admin)
+        self.client.post('/api/venues/personnel/', {'venue': self.venue.id, 'user': self.staff.id}, format='json')
+        res = self.client.post('/api/venues/personnel/', {'venue': self.venue.id, 'user': self.staff.id}, format='json')
+        self.assertEqual(res.status_code, 400)
+
+    def test_list_filters_by_venue(self):
+        other_venue = make_venue('Other Hall')
+        self.VenuePersonnel.objects.create(venue=self.venue, user=self.staff, role_label='Caretaker')
+        self.VenuePersonnel.objects.create(venue=other_venue, user=self.staff, role_label='Caretaker')
+        self.client.force_authenticate(self.admin)
+        res = self.client.get(f'/api/venues/personnel/?venue={self.venue.id}')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+
+    def test_admin_can_unassign(self):
+        vp = self.VenuePersonnel.objects.create(venue=self.venue, user=self.staff, role_label='Caretaker')
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f'/api/venues/personnel/{vp.id}/')
+        self.assertEqual(res.status_code, 204)
+        self.assertEqual(self.venue.personnel.count(), 0)
+
+    def test_non_admin_cannot_unassign(self):
+        vp = self.VenuePersonnel.objects.create(venue=self.venue, user=self.staff, role_label='Caretaker')
+        self.client.force_authenticate(self.student)
+        res = self.client.delete(f'/api/venues/personnel/{vp.id}/')
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(self.venue.personnel.count(), 1)

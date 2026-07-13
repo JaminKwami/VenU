@@ -15,18 +15,21 @@ export default function MobileLayout() {
   const { user } = useAuthStore();
   const location = useLocation();
   const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
+  const isVC = user?.role === 'VC';
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Pending-approvals badge for admins — refresh on navigation.
+  // Pending-approvals badge for admins and VC — refresh on navigation. The
+  // backend already scopes /bookings/ for VC to their own bookings + venues
+  // requiring their sign-off.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin && !isVC) return;
     api.get('/bookings/')
       .then((r) => {
         const data = r.data.results ?? r.data;
         setPendingCount(data.filter((b) => b.status === 'PENDING').length);
       })
       .catch(() => {});
-  }, [isAdmin, location.pathname]);
+  }, [isAdmin, isVC, location.pathname]);
 
   return (
     <MobileFeedbackProvider>
@@ -38,7 +41,7 @@ export default function MobileLayout() {
             <Outlet />
           </div>
         </main>
-        <BottomTabBar isAdmin={isAdmin} pendingCount={pendingCount} />
+        <BottomTabBar isAdmin={isAdmin} isVC={isVC} pendingCount={pendingCount} />
       </div>
     </MobileFeedbackProvider>
   );

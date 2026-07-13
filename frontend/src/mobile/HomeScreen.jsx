@@ -12,7 +12,9 @@ export default function HomeScreen() {
   usePageTitle('Home');
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
+  // Matches DashboardPage (desktop): VC gets the queue-focused home too —
+  // the backend already scopes /bookings/ to their venues.
+  const isAdmin = ['ADMIN', 'RECEPTIONIST', 'VC'].includes(user?.role);
   const [bookings, setBookings] = useState(null);
   const [cancelling, setCancelling] = useState(null);
   const { toast, confirm } = useFeedback();

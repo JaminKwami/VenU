@@ -44,6 +44,16 @@ function AdminRoute() {
   return canAccess ? <Outlet /> : <Navigate to='/dashboard' replace />;
 }
 
+/* Approvals is also open to VC — scoped server-side to venues that require
+   VC sign-off (see services.can_decide_booking). Front desk (check-in, key
+   handouts) stays ADMIN/RECEPTIONIST only — see AdminRoute above. */
+function ApproverRoute() {
+  const { user, accessToken } = useAuthStore();
+  if (!accessToken) return <Navigate to='/login' replace />;
+  const canAccess = ['ADMIN', 'RECEPTIONIST', 'VC'].includes(user?.role);
+  return canAccess ? <Outlet /> : <Navigate to='/dashboard' replace />;
+}
+
 function SuperAdminRoute() {
   const { user, accessToken } = useAuthStore();
   if (!accessToken) return <Navigate to='/login' replace />;
@@ -135,11 +145,15 @@ export default function App() {
             <Route path='/my-bookings' element={<Responsive mobile={<MyBookings />} desktop={<Navigate to='/dashboard' replace />} />} />
             <Route path='/profile'     element={<Responsive mobile={<ProfileScreen />} desktop={<Navigate to='/dashboard' replace />} />} />
 
-            {/* ADMIN + RECEPTIONIST */}
-            <Route element={<AdminRoute />}>
+            {/* ADMIN + RECEPTIONIST + VC (VC scoped server-side to their gated venues) */}
+            <Route element={<ApproverRoute />}>
               {/* Mobile approval queue lives at /approvals; desktop uses /admin/approvals */}
               <Route path='/approvals' element={<Responsive mobile={<ApprovalQueue />} desktop={<Navigate to='/admin/approvals' replace />} />} />
               <Route path='/admin/approvals' element={<ApprovalsPage />} />
+            </Route>
+
+            {/* ADMIN + RECEPTIONIST only — front desk is check-in/key handling, not VC's job */}
+            <Route element={<AdminRoute />}>
               <Route path='/desk' element={<Responsive mobile={<FrontDesk />} desktop={<FrontDeskPage />} />} />
             </Route>
 

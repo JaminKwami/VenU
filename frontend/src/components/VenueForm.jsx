@@ -25,9 +25,26 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
     min_notice_hours: venue?.min_notice_hours ?? 24,
     description: venue?.description || '',
     access: venue?.access || 'both',
+    requires_vc_approval: venue?.requires_vc_approval || false,
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // Personnel (who prepares this venue) — a separate resource from the venue
+  // itself, so changes save immediately rather than waiting on the main form.
+  const [personnel, setPersonnel] = useState([]);
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  const [newPersonUser, setNewPersonUser] = useState('');
+  const [newPersonRole, setNewPersonRole] = useState('');
+  const [addingPersonnel, setAddingPersonnel] = useState(false);
+  const [personnelError, setPersonnelError] = useState('');
+
+  useEffect(() => {
+    if (!isEdit) return;
+    api.get('/venues/personnel/', { params: { venue: venue.id } }).then(r => setPersonnel(r.data)).catch(() => {});
+    api.get('/auth/users/').then(r => setAssignableUsers(r.data.results ?? r.data)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, venue?.id]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
@@ -63,6 +80,36 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
         ? f.amenities.filter(x => x !== a)
         : [...f.amenities, a],
     }));
+  }
+
+  async function addPersonnel(e) {
+    e.preventDefault();
+    if (!newPersonUser) return;
+    setAddingPersonnel(true);
+    setPersonnelError('');
+    try {
+      const { data } = await api.post('/venues/personnel/', {
+        venue: venue.id, user: Number(newPersonUser), role_label: newPersonRole,
+      });
+      setPersonnel(prev => [...prev, data]);
+      setNewPersonUser('');
+      setNewPersonRole('');
+    } catch (err) {
+      const d = err.response?.data;
+      setPersonnelError(d?.detail || d?.non_field_errors?.[0] || d?.user?.[0] || 'Could not assign this person.');
+    } finally {
+      setAddingPersonnel(false);
+    }
+  }
+
+  async function removePersonnel(id) {
+    setPersonnel(prev => prev.filter(p => p.id !== id)); // optimistic
+    try {
+      await api.delete(`/venues/personnel/${id}/`);
+    } catch {
+      // Re-fetch on failure rather than leaving the list silently wrong.
+      api.get('/venues/personnel/', { params: { venue: venue.id } }).then(r => setPersonnel(r.data)).catch(() => {});
+    }
   }
 
   async function handleSubmit(e) {
@@ -154,6 +201,69 @@ export default function VenueForm({ venue = null, onSuccess, onCancel }) {
                 <option value="none">Not bookable (hidden)</option>
               </select>
             </div>
+          </div>
+
+          <div className="field">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '.6rem', textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit', fontSize: '.9rem', fontWeight: 500, color: 'var(--ink-65)' }}>
+              <input type="checkbox" checked={form.requires_vc_approval} onChange={e => set('requires_vc_approval', e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+              Requires VC approval
+            </label>
+            <span style={{ fontSize: '.8rem', color: 'var(--ink-45)' }}>
+              Only the Vice-Chancellor role can approve or decline bookings for this venue — regular admins and receptionists can't decide these.
+            </span>
+          </div>
+
+          <div className="field">
+            <label>Personnel</label>
+            {!isEdit ? (
+              <span style={{ fontSize: '.82rem', color: 'var(--ink-45)' }}>Save the venue first, then assign the staff who prepare it.</span>
+            ) : (
+              <>
+                {personnel.length > 0 && (
+                  <div className="stack" style={{ gap: '.4rem', marginBottom: '.7rem' }}>
+                    {personnel.map(p => (
+                      <div key={p.id} className="row" style={{ alignItems: 'center', gap: '.6rem', padding: '.5rem .7rem', border: '1px solid var(--line-2)', borderRadius: 'var(--r-sm)', background: 'var(--surface-2)' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '.86rem', fontWeight: 600 }}>{p.user_name || p.user_email}</div>
+                          <div style={{ fontSize: '.74rem', color: 'var(--ink-45)' }}>{p.role_label || 'Personnel'} · {p.user_email}</div>
+                        </div>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => removePersonnel(p.id)} aria-label={`Remove ${p.user_name || p.user_email}`}>
+                          <Icon.X width={14} height={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap' }}>
+                  <select
+                    className="select"
+                    style={{ flex: '1 1 160px' }}
+                    value={newPersonUser}
+                    onChange={e => setNewPersonUser(e.target.value)}
+                    aria-label="Person to assign"
+                  >
+                    <option value="">Pick a person…</option>
+                    {assignableUsers.filter(u => !personnel.some(p => p.user === u.id)).map(u => (
+                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                    ))}
+                  </select>
+                  <input
+                    className="input"
+                    style={{ flex: '1 1 140px' }}
+                    placeholder="Role (e.g. Caretaker)"
+                    value={newPersonRole}
+                    onChange={e => setNewPersonRole(e.target.value)}
+                  />
+                  <button type="button" className="btn btn-outline btn-sm" onClick={addPersonnel} disabled={!newPersonUser || addingPersonnel}>
+                    {addingPersonnel ? 'Adding…' : 'Add'}
+                  </button>
+                </div>
+                {personnelError && <span className="field-error">{personnelError}</span>}
+                <span style={{ fontSize: '.78rem', color: 'var(--ink-45)', marginTop: '.4rem', display: 'block' }}>
+                  They'll be notified (in-app, push and email) whenever a booking here is approved.
+                </span>
+              </>
+            )}
           </div>
 
           <div className="field">

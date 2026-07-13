@@ -400,6 +400,7 @@ select.role-sel { width: auto; }
 span.role-sel { cursor: default; padding-right: .7em; }
 .role-sel.admin        { color: var(--accent-ink); background-color: var(--accent-soft); border-color: var(--accent-line); }
 .role-sel.receptionist { color: var(--warn); background-color: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.role-sel.vc           { color: var(--success); background-color: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
 .role-sel.staff,
 .role-sel.student      { color: var(--ink-65); background-color: var(--canvas-2); border-color: var(--line-2); }
 .role-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .2rem; }

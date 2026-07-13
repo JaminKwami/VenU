@@ -6,6 +6,7 @@ import { Icon } from '../components/icons';
  * Tab order is role-aware:
  *   Student/Staff:  Home | Venues | [+] | Bookings | Profile
  *   Admin/Recept.:  Home | Desk   | [+] | Queue    | Profile
+ *   VC:             Home | Venues | [+] | Queue    | Profile  (no Desk — not their job)
  */
 const STUDENT_TABS = [
   { id: 'home',     label: 'Home',     Icon: Icon.Home,     path: '/dashboard' },
@@ -23,10 +24,18 @@ const ADMIN_TABS = [
   { id: 'profile',  label: 'Profile', Icon: Icon.Profile,   path: '/profile' },
 ];
 
-export default function BottomTabBar({ isAdmin, pendingCount = 0 }) {
+const VC_TABS = [
+  { id: 'home',     label: 'Home',    Icon: Icon.Home,      path: '/dashboard' },
+  { id: 'venues',   label: 'Venues',  Icon: Icon.Venues,    path: '/venues' },
+  { id: 'book',     label: null,      Icon: null,           path: '/book', isCta: true },
+  { id: 'queue',    label: 'Queue',   Icon: Icon.Approvals, path: '/approvals', badge: true },
+  { id: 'profile',  label: 'Profile', Icon: Icon.Profile,   path: '/profile' },
+];
+
+export default function BottomTabBar({ isAdmin, isVC, pendingCount = 0 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const tabs = isAdmin ? ADMIN_TABS : STUDENT_TABS;
+  const tabs = isAdmin ? ADMIN_TABS : isVC ? VC_TABS : STUDENT_TABS;
 
   const isActive = (path) =>
     path === '/dashboard'

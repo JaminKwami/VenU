@@ -11,7 +11,7 @@ import { INSTITUTION, INSTITUTION_FULL } from '../constants';
 import { enablePush, disablePush } from '../push';
 import MfaModal from './MfaModal';
 
-const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', STAFF: 'Staff', STUDENT: 'Student' };
+const ROLE_LABEL = { ADMIN: 'Admin', RECEPTIONIST: 'Receptionist', VC: 'Vice-Chancellor', STAFF: 'Staff', STUDENT: 'Student' };
 
 function Toggle({ on, onChange, label }) {
   return (
@@ -55,7 +55,9 @@ export default function ProfileScreen() {
 
   const name = user?.full_name || user?.email?.split('@')[0] || 'You';
   const role = user?.role;
-  const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(role);
+  // Anyone who can decide bookings (ADMIN/RECEPTIONIST/VC) sees the
+  // Approvals shortcut here; only ADMIN sees the full admin section below.
+  const isAdmin = ['ADMIN', 'RECEPTIONIST', 'VC'].includes(role);
   const isSuperAdmin = role === 'ADMIN';
 
   function cycleAccent() {

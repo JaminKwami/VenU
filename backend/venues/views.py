@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import IsAdmin
-from .models import Venue
-from .serializers import VenueSerializer
+from .models import Venue, VenuePersonnel
+from .serializers import VenuePersonnelSerializer, VenueSerializer
 from .services import get_venue_alternatives
 
 
@@ -153,6 +153,42 @@ class VenueAlternativesView(APIView):
             results.append(data)
 
         return Response(results)
+
+
+class VenuePersonnelListCreateView(APIView):
+    """
+    GET  /api/venues/personnel/?venue={id}  — list personnel, optionally for one venue
+    POST /api/venues/personnel/             — assign a person to a venue
+    Admin only — who prepares a venue is an operational/admin concern.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        qs = VenuePersonnel.objects.select_related('venue', 'user').all()
+        venue_id = request.query_params.get('venue')
+        if venue_id and venue_id.isdigit():
+            qs = qs.filter(venue_id=venue_id)
+        return Response(VenuePersonnelSerializer(qs, many=True).data)
+
+    def post(self, request):
+        serializer = VenuePersonnelSerializer(data=request.data)
+        if serializer.is_valid():
+            vp = serializer.save()
+            return Response(VenuePersonnelSerializer(vp).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VenuePersonnelDetailView(APIView):
+    """DELETE /api/venues/personnel/{id}/ — unassign a person from a venue. Admin only."""
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        try:
+            vp = VenuePersonnel.objects.get(pk=pk)
+        except VenuePersonnel.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        vp.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class VenueStatsView(APIView):

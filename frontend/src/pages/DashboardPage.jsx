@@ -45,9 +45,11 @@ export default function DashboardPage() {
     <Link className="btn btn-primary btn-sm" to="/book"><Icon.Plus width={15} height={15} /> New booking</Link>
   ));
   const { user } = useAuthStore();
-  // Admin-style dashboard = those who manage the queue (ADMIN + RECEPTIONIST),
-  // matching the sidebar, route guards and backend (User.is_staff_member).
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'RECEPTIONIST';
+  // Admin-style dashboard = those who manage a queue (ADMIN + RECEPTIONIST +
+  // VC), matching the sidebar/route guards. The backend already scopes
+  // /bookings/ for VC to their own bookings + venues requiring their sign-off,
+  // so the same "needs your approval" widget just works for them too.
+  const isAdmin = ['ADMIN', 'RECEPTIONIST', 'VC'].includes(user?.role);
   const [bookings, setBookings] = useState(null);
   const [qrBooking, setQrBooking] = useState(null);
   const [filter, setFilter] = useState('upcoming');

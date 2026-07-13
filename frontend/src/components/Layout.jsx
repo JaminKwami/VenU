@@ -35,15 +35,18 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(null);
   const isAdmin = ['ADMIN', 'RECEPTIONIST'].includes(user?.role);
+  const isVC = user?.role === 'VC';
+  const canApprove = isAdmin || isVC;
   const isSuperAdmin = user?.role === 'ADMIN';
 
-  // Pending-approvals badge for admins.
+  // Pending-approvals badge for admins and VC — the backend already scopes
+  // /bookings/ for VC to their own bookings + venues requiring their sign-off.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canApprove) return;
     api.get('/bookings/')
       .then(r => setPendingCount((r.data.results ?? r.data).filter(b => b.status === 'PENDING').length))
       .catch(() => {});
-  }, [isAdmin, location.pathname]);
+  }, [canApprove, location.pathname]);
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
@@ -77,10 +80,10 @@ export default function Layout() {
         {navLink('/venues', 'Venues', Icon.Venues)}
         {navLink('/timetable', 'Find a room', Icon.Calendar)}
         {navLink('/book', 'Book a room', Icon.Book)}
-        {isAdmin && (
+        {canApprove && (
           <>
             <div className="sb-section">Administration</div>
-            {navLink('/desk', 'Front desk', Icon.Key)}
+            {isAdmin && navLink('/desk', 'Front desk', Icon.Key)}
             {navLink('/admin/approvals', 'Approvals', Icon.Approvals, pendingCount)}
             {isSuperAdmin && navLink('/admin/venues', 'Manage venues', Icon.Manage)}
             {isSuperAdmin && navLink('/admin/users', 'Users', Icon.Users)}
